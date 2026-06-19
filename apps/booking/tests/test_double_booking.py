@@ -1,6 +1,7 @@
 """
 PERMANENT GATE: no double-booking, ever (B4) -- including under concurrency.
 """
+
 import threading
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -10,7 +11,7 @@ from django.db import IntegrityError, OperationalError, connection
 from django_tenants.utils import schema_context, tenant_context
 
 from apps.booking import services as booking_services
-from apps.booking.models import ACTIVE_STATUSES, Appointment, AppointmentStatus
+from apps.booking.models import ACTIVE_STATUSES, Appointment
 from apps.booking.services import DoubleBooking
 
 from .conftest import build_staff_service
@@ -29,7 +30,8 @@ def test_overlapping_same_staff_rejected(tenant):
         )
         with pytest.raises(DoubleBooking):
             booking_services.create_appointment(
-                service=service, staff=staff,
+                service=service,
+                staff=staff,
                 start_at=WHEN + timedelta(minutes=15),  # overlaps
                 enforce_availability=False,
             )
@@ -43,7 +45,9 @@ def test_adjacent_same_staff_allowed(tenant):
         )
         # Starts exactly when the first ends -> no overlap (half-open ranges).
         appt = booking_services.create_appointment(
-            service=service, staff=staff, start_at=WHEN + timedelta(minutes=30),
+            service=service,
+            staff=staff,
+            start_at=WHEN + timedelta(minutes=30),
             enforce_availability=False,
         )
         assert appt.id is not None

@@ -1,4 +1,5 @@
 """Subdomain validation + reserved-name protection (B1)."""
+
 import re
 
 from django.conf import settings
@@ -24,7 +25,9 @@ def validate_subdomain(raw: str) -> str:
             code="subdomain_invalid",
         )
     if "--" in sub:
-        raise DomainError("Subdomain may not contain consecutive hyphens.", code="subdomain_invalid")
+        raise DomainError(
+            "Subdomain may not contain consecutive hyphens.", code="subdomain_invalid"
+        )
     if sub in settings.RESERVED_SUBDOMAINS:
         raise DomainError("That subdomain is reserved.", code="subdomain_reserved")
     return sub

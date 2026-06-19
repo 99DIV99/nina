@@ -8,6 +8,7 @@ Architectural notes (see booking-saas-build-tasklist.md):
 - TenantMainMiddleware must be first in the stack so the schema is switched before
   anything else runs.
 """
+
 from datetime import timedelta
 from pathlib import Path
 
@@ -150,9 +151,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {
-        "BACKEND": "django_tenants.staticfiles.storage.TenantStaticFilesStorage"
-    },
+    "staticfiles": {"BACKEND": "django_tenants.staticfiles.storage.TenantStaticFilesStorage"},
 }
 
 # ---------------------------------------------------------------------------
@@ -163,9 +162,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "apps.common.pagination.DefaultPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -207,11 +204,45 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 # ---------------------------------------------------------------------------
 # Subdomains that may never be claimed by a tenant.
 RESERVED_SUBDOMAINS = {
-    "www", "api", "admin", "app", "mail", "ftp", "smtp", "imap", "pop",
-    "ns", "ns1", "ns2", "dns", "static", "assets", "cdn", "media", "img",
-    "blog", "help", "support", "docs", "status", "billing", "dashboard",
-    "console", "internal", "staging", "dev", "test", "demo", "public",
-    "operator", "system", "root", "security", "auth", "login", "signup",
+    "www",
+    "api",
+    "admin",
+    "app",
+    "mail",
+    "ftp",
+    "smtp",
+    "imap",
+    "pop",
+    "ns",
+    "ns1",
+    "ns2",
+    "dns",
+    "static",
+    "assets",
+    "cdn",
+    "media",
+    "img",
+    "blog",
+    "help",
+    "support",
+    "docs",
+    "status",
+    "billing",
+    "dashboard",
+    "console",
+    "internal",
+    "staging",
+    "dev",
+    "test",
+    "demo",
+    "public",
+    "operator",
+    "system",
+    "root",
+    "security",
+    "auth",
+    "login",
+    "signup",
 }
 
 # Email

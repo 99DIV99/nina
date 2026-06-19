@@ -1,5 +1,6 @@
 """Domain signals so other modules (accounting, notifications) can react without
 the booking engine knowing about them."""
+
 import django.dispatch
 
 appointment_created = django.dispatch.Signal()  # kwargs: appointment

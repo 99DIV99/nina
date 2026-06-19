@@ -1,6 +1,7 @@
 """
 Bookkeeping models (B6) -- per-tenant, flag-gated by Business.has_accounting.
 """
+
 from django.db import models
 
 

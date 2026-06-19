@@ -4,6 +4,7 @@ Booking-bot models (B7) -- per tenant. A bot belongs to exactly one tenant
 through the same authorized booking service as any other actor. There is no
 privileged backdoor.
 """
+
 import secrets
 
 from django.db import models
@@ -59,13 +60,18 @@ class Conversation(models.Model):
         db_table = "bots_conversation"
         ordering = ("-updated_at",)
 
+    def __str__(self) -> str:
+        return f"Conversation #{self.pk} ({self.channel})"
+
 
 class Message(models.Model):
     class Role(models.TextChoices):
         USER = "user", "User"
         BOT = "bot", "Bot"
 
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="messages")
+    conversation = models.ForeignKey(
+        Conversation, on_delete=models.CASCADE, related_name="messages"
+    )
     role = models.CharField(max_length=8, choices=Role.choices)
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -73,3 +79,6 @@ class Message(models.Model):
     class Meta:
         db_table = "bots_message"
         ordering = ("created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.role}: {self.text[:40]}"

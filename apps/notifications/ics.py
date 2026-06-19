@@ -1,12 +1,25 @@
 """Minimal RFC 5545 .ics builder for booking confirmations (B5)."""
+
 from datetime import datetime
 
 
 def _fmt(dt: datetime) -> str:
-    return dt.astimezone(tz=None).strftime("%Y%m%dT%H%M%SZ") if dt.tzinfo else dt.strftime("%Y%m%dT%H%M%S")
+    return (
+        dt.astimezone(tz=None).strftime("%Y%m%dT%H%M%SZ")
+        if dt.tzinfo
+        else dt.strftime("%Y%m%dT%H%M%S")
+    )
 
 
-def build_ics(*, uid: str, summary: str, start: datetime, end: datetime, description: str = "", location: str = "") -> bytes:
+def build_ics(
+    *,
+    uid: str,
+    summary: str,
+    start: datetime,
+    end: datetime,
+    description: str = "",
+    location: str = "",
+) -> bytes:
     import datetime as _dt
     from zoneinfo import ZoneInfo
 

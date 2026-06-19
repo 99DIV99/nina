@@ -1,5 +1,6 @@
 """B7: bot books a PENDING appointment into the panel; bot secret is tenant-scoped."""
-from datetime import date, datetime, timedelta
+
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest

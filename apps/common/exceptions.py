@@ -1,4 +1,5 @@
 """Consistent error envelope for the whole API (B10: error envelope)."""
+
 from rest_framework.views import exception_handler as drf_exception_handler
 
 
@@ -13,7 +14,7 @@ def exception_handler(exc, context):
     if isinstance(detail, dict) and "detail" in detail and len(detail) == 1:
         message = str(detail["detail"])
         details = None
-    elif isinstance(detail, (list, str)):
+    elif isinstance(detail, list | str):
         message = "Request failed."
         details = detail
     else:

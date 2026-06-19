@@ -1,4 +1,5 @@
 """Notification log (B5) -- per tenant. Tracks what we sent and delivery state."""
+
 from django.db import models
 
 

@@ -3,6 +3,7 @@ Conversational booking pipeline (B7): understand intent -> check REAL
 availability (reuses Phase B4) -> create a PENDING appointment -> surface it in
 the panel review queue. Transcript is logged per tenant.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -67,8 +68,12 @@ def handle_message(bot, conversation: Conversation, text: str) -> dict:
             start_at = start_at.replace(tzinfo=ZoneInfo("UTC"))
         try:
             result = tools.create_pending_booking(
-                bot, service_id=service_id, staff_id=match["staff_id"], start_at=start_at,
-                customer_name=state.get("name", "Guest"), customer_email=state["email"],
+                bot,
+                service_id=service_id,
+                staff_id=match["staff_id"],
+                start_at=start_at,
+                customer_name=state.get("name", "Guest"),
+                customer_email=state["email"],
             )
         except Exception as exc:  # noqa: BLE001
             return _reply(conversation, f"I couldn't hold that slot: {exc}")

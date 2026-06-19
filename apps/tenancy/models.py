@@ -5,6 +5,7 @@ Tenancy models -- live in the PUBLIC schema.
 schema is the isolation boundary. Tenant apps carry NO business_id -- isolation
 is structural, not a filter column.
 """
+
 from django.db import models
 from django_tenants.models import DomainMixin, TenantMixin
 

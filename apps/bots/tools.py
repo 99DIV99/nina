@@ -6,6 +6,7 @@ authorized booking service as a human. There is no tool that can reach another
 tenant or bypass booking correctness. An LLM/function-calling layer (e.g. Claude
 tool use) may select among these tools, but it can never invent new ones.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -30,7 +31,9 @@ def list_services(bot) -> list[dict]:
     ]
 
 
-def check_availability(bot, *, service_id: int, day: date, staff_id: int | None = None) -> list[dict]:
+def check_availability(
+    bot, *, service_id: int, day: date, staff_id: int | None = None
+) -> list[dict]:
     service = next((s for s in _allowed_services(bot) if s.id == service_id), None)
     if service is None:
         return []
@@ -41,15 +44,27 @@ def check_availability(bot, *, service_id: int, day: date, staff_id: int | None 
     out = []
     for staff in staff_qs:
         slots = generate_slots(
-            service=service, staff=staff, range_start=day, range_end=day,
-            lead_minutes=profile.booking_lead_minutes, max_advance_days=profile.max_advance_days,
+            service=service,
+            staff=staff,
+            range_start=day,
+            range_end=day,
+            lead_minutes=profile.booking_lead_minutes,
+            max_advance_days=profile.max_advance_days,
         )
         out.extend(s.as_dict() for s in slots)
     return out
 
 
-def create_pending_booking(bot, *, service_id: int, staff_id: int, start_at: datetime,
-                           customer_name: str, customer_email: str = "", customer_phone: str = "") -> dict:
+def create_pending_booking(
+    bot,
+    *,
+    service_id: int,
+    staff_id: int,
+    start_at: datetime,
+    customer_name: str,
+    customer_email: str = "",
+    customer_phone: str = "",
+) -> dict:
     """Create a PENDING appointment for human review. Reuses the same engine, so
     double-booking is impossible even via a bot."""
     service = next((s for s in _allowed_services(bot) if s.id == service_id), None)
@@ -69,8 +84,14 @@ def create_pending_booking(bot, *, service_id: int, staff_id: int, start_at: dat
 
     profile = BusinessProfile.get_solo()
     appt = booking_services.create_appointment(
-        service=service, staff=staff, start_at=start_at, customer=customer,
-        source="bot", status=AppointmentStatus.PENDING, enforce_availability=True,
-        lead_minutes=profile.booking_lead_minutes, max_advance_days=profile.max_advance_days,
+        service=service,
+        staff=staff,
+        start_at=start_at,
+        customer=customer,
+        source="bot",
+        status=AppointmentStatus.PENDING,
+        enforce_availability=True,
+        lead_minutes=profile.booking_lead_minutes,
+        max_advance_days=profile.max_advance_days,
     )
     return {"appointment_id": appt.id, "status": appt.status}

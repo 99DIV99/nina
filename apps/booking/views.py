@@ -1,4 +1,5 @@
 """Panel booking API (B4). All writes are gated by booking.manage / staff.manage."""
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -15,14 +16,7 @@ from apps.accounts.authorization import (
 from apps.accounts.permissions import HasPermission, IsTenantMember
 from apps.booking import services as booking_services
 from apps.booking.availability import generate_slots
-from apps.booking.models import (
-    Appointment,
-    BusinessHours,
-    Customer,
-    Service,
-    StaffMember,
-    TimeOff,
-)
+from apps.booking.models import Appointment, BusinessHours, Customer, Service, StaffMember, TimeOff
 from apps.booking.serializers import (
     AppointmentCreateSerializer,
     AppointmentSerializer,
@@ -123,7 +117,9 @@ class AppointmentViewSet(_PermViewSet):
                 max_advance_days=profile.max_advance_days,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code)
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
         return Response(AppointmentSerializer(appt).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
@@ -162,7 +158,9 @@ class AppointmentViewSet(_PermViewSet):
                 max_advance_days=profile.max_advance_days,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code)
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
         return Response(AppointmentSerializer(appt).data)
 
     def _transition(self, fn):
@@ -170,7 +168,9 @@ class AppointmentViewSet(_PermViewSet):
         try:
             appt = fn(appt)
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code)
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
         return Response(AppointmentSerializer(appt).data)
 
 

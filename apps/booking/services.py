@@ -3,11 +3,11 @@ Booking service layer (B4). Every appointment mutation goes through here so the
 correctness guarantees (atomicity, no double-booking, lifecycle) live in one place
 and are reused identically by the panel, the public page, and bots.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import time
+from datetime import datetime, timedelta
 
 from django.db import IntegrityError, OperationalError, transaction
 from django.utils import timezone
@@ -41,10 +41,19 @@ def _validate_actors(service: Service, staff: StaffMember) -> None:
     if not staff.is_active:
         raise DomainError("Staff member is not active.", code="staff_inactive")
     if not service.staff.filter(pk=staff.pk).exists():
-        raise DomainError("This staff member does not offer that service.", code="staff_service_mismatch")
+        raise DomainError(
+            "This staff member does not offer that service.", code="staff_service_mismatch"
+        )
 
 
-def _slot_is_offered(service: Service, staff: StaffMember, start_at: datetime, *, lead_minutes: int, max_advance_days: int | None) -> bool:
+def _slot_is_offered(
+    service: Service,
+    staff: StaffMember,
+    start_at: datetime,
+    *,
+    lead_minutes: int,
+    max_advance_days: int | None,
+) -> bool:
     day = start_at.astimezone(timezone.get_current_timezone()).date()
     slots = generate_slots(
         service=service,
@@ -88,8 +97,14 @@ def create_appointment(
     for attempt in range(3):
         try:
             return _insert_appointment(
-                service=service, staff=staff, start_at=start_at, customer=customer,
-                source=source, price=price, notes=notes, status=status,
+                service=service,
+                staff=staff,
+                start_at=start_at,
+                customer=customer,
+                source=source,
+                price=price,
+                notes=notes,
+                status=status,
             )
         except OperationalError as exc:  # deadlock victim -> brief backoff + retry
             if "deadlock" not in str(exc).lower():
@@ -124,15 +139,25 @@ def _insert_appointment(*, service, staff, start_at, customer, source, price, no
 
 
 @transaction.atomic
-def reschedule(appointment: Appointment, *, new_start: datetime, enforce_availability: bool = True, lead_minutes: int = 0, max_advance_days: int | None = None) -> Appointment:
+def reschedule(
+    appointment: Appointment,
+    *,
+    new_start: datetime,
+    enforce_availability: bool = True,
+    lead_minutes: int = 0,
+    max_advance_days: int | None = None,
+) -> Appointment:
     if appointment.status not in ACTIVE_STATUSES:
         raise DomainError("Only active appointments can be rescheduled.", code="not_reschedulable")
     if timezone.is_naive(new_start):
         raise DomainError("new_start must be timezone-aware.", code="naive_datetime")
 
     if enforce_availability and not _slot_is_offered(
-        appointment.service, appointment.staff, new_start,
-        lead_minutes=lead_minutes, max_advance_days=max_advance_days,
+        appointment.service,
+        appointment.staff,
+        new_start,
+        lead_minutes=lead_minutes,
+        max_advance_days=max_advance_days,
     ):
         raise SlotUnavailable("That time is not available.")
 
@@ -145,7 +170,9 @@ def reschedule(appointment: Appointment, *, new_start: datetime, enforce_availab
         if "no_double_booking" in str(exc):
             raise DoubleBooking("That slot was just taken.") from exc
         raise
-    signals.appointment_rescheduled.send(sender=Appointment, appointment=appointment, old_start=old_start)
+    signals.appointment_rescheduled.send(
+        sender=Appointment, appointment=appointment, old_start=old_start
+    )
     return appointment
 
 

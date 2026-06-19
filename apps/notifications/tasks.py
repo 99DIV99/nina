@@ -5,6 +5,7 @@ across tenants never touches the wrong schema.
 
 Retry with backoff; after max retries the log row is dead-lettered.
 """
+
 import logging
 
 from celery import shared_task
@@ -39,7 +40,7 @@ def send_notification(self, schema_name: str, log_id: int):
                 return
             log.status = NotificationLog.Status.FAILED
             log.save(update_fields=["status", "attempts", "error"])
-            raise self.retry(exc=exc)
+            raise self.retry(exc=exc) from exc
         log.status = NotificationLog.Status.SENT
         log.sent_at = timezone.now()
         log.save(update_fields=["status", "attempts", "sent_at"])
@@ -79,6 +80,8 @@ def dispatch_due_reminders(schema_name: str, lead_minutes: int = 1440):
                 appointment_id=appt.id, kind=NotificationLog.Kind.REMINDER
             ).exists()
             if not already and appt.customer and appt.customer.email:
-                queue_for_appointment(appt, kind=NotificationLog.Kind.REMINDER, schema_name=schema_name)
+                queue_for_appointment(
+                    appt, kind=NotificationLog.Kind.REMINDER, schema_name=schema_name
+                )
                 count += 1
         return count

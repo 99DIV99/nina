@@ -4,6 +4,7 @@ PERMANENT GATE: tenant isolation (B1).
 Proves a query in tenant A's context cannot read tenant B's data, under normal
 and adversarial (forged host) requests. This suite must pass in CI forever.
 """
+
 import pytest
 from django.test import Client
 from django_tenants.utils import tenant_context

@@ -1,4 +1,5 @@
 """Platform operator console APIs (B8). Public schema; platform-staff only."""
+
 from rest_framework import serializers
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -15,9 +16,20 @@ class BusinessAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = (
-            "id", "name", "schema_name", "business_type", "experience", "plan",
-            "is_active", "suspended_at", "has_accounting", "has_records",
-            "has_bots", "has_sms", "created_on", "primary_domain",
+            "id",
+            "name",
+            "schema_name",
+            "business_type",
+            "experience",
+            "plan",
+            "is_active",
+            "suspended_at",
+            "has_accounting",
+            "has_records",
+            "has_bots",
+            "has_sms",
+            "created_on",
+            "primary_domain",
         )
 
     def get_primary_domain(self, obj):
@@ -43,7 +55,9 @@ class TenantActionView(APIView):
     def post(self, request, pk):
         business = Business.objects.exclude(schema_name="public").filter(pk=pk).first()
         if business is None:
-            return Response({"error": {"code": "not_found", "message": "Tenant not found."}}, status=404)
+            return Response(
+                {"error": {"code": "not_found", "message": "Tenant not found."}}, status=404
+            )
         action = request.data.get("action")
         flags = request.data.get("flags")
         if action == "suspend":
@@ -57,5 +71,7 @@ class TenantActionView(APIView):
                     setattr(business, key, value)
             business.save()
         else:
-            return Response({"error": {"code": "bad_action", "message": "Unknown action."}}, status=400)
+            return Response(
+                {"error": {"code": "bad_action", "message": "Unknown action."}}, status=400
+            )
         return Response(BusinessAdminSerializer(business).data)

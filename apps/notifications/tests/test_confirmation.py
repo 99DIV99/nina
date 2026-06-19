@@ -1,4 +1,5 @@
 """B5: booking confirmation queues + sends an email with an .ics attachment."""
+
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -23,7 +24,10 @@ def test_confirmation_sent_on_booking(tenant_factory):
         cust = Customer.objects.create(name="Cara", email="cara@test.io")
         mail.outbox.clear()
         booking_services.create_appointment(
-            service=service, staff=staff, start_at=WHEN, customer=cust,
+            service=service,
+            staff=staff,
+            start_at=WHEN,
+            customer=cust,
             enforce_availability=False,
         )
         log = NotificationLog.objects.filter(kind="confirmation").first()
@@ -41,7 +45,10 @@ def test_no_email_without_customer_email(tenant_factory):
         cust = Customer.objects.create(name="NoEmail")
         mail.outbox.clear()
         booking_services.create_appointment(
-            service=service, staff=staff, start_at=WHEN, customer=cust,
+            service=service,
+            staff=staff,
+            start_at=WHEN,
+            customer=cust,
             enforce_availability=False,
         )
         assert NotificationLog.objects.count() == 0

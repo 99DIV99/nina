@@ -5,6 +5,7 @@ Availability is computed in the staff's local timezone and emitted in UTC. The
 same local wall-clock hour maps to DIFFERENT UTC instants either side of a DST
 transition -- the engine must get this right.
 """
+
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -30,12 +31,15 @@ def _first_slot_on(slots, day, tz):
 
 def test_local_hours_map_to_correct_utc(tenant):
     with tenant_context(tenant):
-        staff, service = build_staff_service(tz="America/New_York", duration=30,
-                                             start="09:00", end="17:00")
+        staff, service = build_staff_service(
+            tz="America/New_York", duration=30, start="09:00", end="17:00"
+        )
         # A plain summer Monday (EDT, UTC-4): 09:00 local == 13:00 UTC.
         slots = generate_slots(
-            service=service, staff=staff,
-            range_start=date(2026, 7, 6), range_end=date(2026, 7, 6),
+            service=service,
+            staff=staff,
+            range_start=date(2026, 7, 6),
+            range_end=date(2026, 7, 6),
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         first = _first_slot_on(slots, date(2026, 7, 6), NY)
@@ -48,16 +52,21 @@ def test_dst_boundary_shifts_utc_offset(tenant):
     """US 'fall back' is 2026-11-01. 09:00 local is UTC-4 (EDT) on 10-30 but
     UTC-5 (EST) on 11-02 -> different UTC hour, proving DST awareness."""
     with tenant_context(tenant):
-        staff, service = build_staff_service(tz="America/New_York", duration=30,
-                                             start="09:00", end="17:00")
+        staff, service = build_staff_service(
+            tz="America/New_York", duration=30, start="09:00", end="17:00"
+        )
         before = generate_slots(
-            service=service, staff=staff,
-            range_start=date(2026, 10, 30), range_end=date(2026, 10, 30),
+            service=service,
+            staff=staff,
+            range_start=date(2026, 10, 30),
+            range_end=date(2026, 10, 30),
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         after = generate_slots(
-            service=service, staff=staff,
-            range_start=date(2026, 11, 2), range_end=date(2026, 11, 2),
+            service=service,
+            staff=staff,
+            range_start=date(2026, 11, 2),
+            range_end=date(2026, 11, 2),
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         b = _first_slot_on(before, date(2026, 10, 30), NY)

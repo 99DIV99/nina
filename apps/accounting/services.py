@@ -1,4 +1,5 @@
 """Accounting services + the auto-income hook (B6)."""
+
 import logging
 
 from django.db import IntegrityError, connection

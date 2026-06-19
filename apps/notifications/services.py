@@ -1,4 +1,5 @@
 """Queue notifications + connect booking signals (B5)."""
+
 import logging
 
 from django.conf import settings
@@ -9,7 +10,9 @@ from apps.notifications.models import NotificationLog
 logger = logging.getLogger("nina.notifications")
 
 
-def queue_for_appointment(appointment, *, kind: str, schema_name: str | None = None) -> NotificationLog | None:
+def queue_for_appointment(
+    appointment, *, kind: str, schema_name: str | None = None
+) -> NotificationLog | None:
     """Create a queued NotificationLog and dispatch the send task."""
     recipient = appointment.customer.email if appointment.customer else ""
     if not recipient:

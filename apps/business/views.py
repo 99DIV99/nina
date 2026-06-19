@@ -2,9 +2,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.authorization import current_membership
+from apps.accounts.authorization import P_SETTINGS_MANAGE, current_membership
 from apps.accounts.permissions import HasPermission, IsTenantMember
-from apps.accounts.authorization import P_SETTINGS_MANAGE
 from apps.business.context import build_context
 from apps.business.models import BusinessProfile
 from apps.business.serializers import BusinessProfileSerializer

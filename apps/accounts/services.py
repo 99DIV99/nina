@@ -1,7 +1,7 @@
 """Auth-related services: lockout, verification tokens, password reset."""
+
 from datetime import timedelta
 
-from django.conf import settings
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.utils import timezone
 

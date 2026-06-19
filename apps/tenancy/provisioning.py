@@ -10,6 +10,7 @@ create_business():
 
 All wrapped so a failure does not leave a half-provisioned tenant.
 """
+
 import logging
 
 from django.conf import settings

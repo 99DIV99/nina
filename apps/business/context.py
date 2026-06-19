@@ -5,6 +5,7 @@ This is an OUTBOUND RENDERING HINT only. It grants nothing. Authorization stays
 per-request and server-side: the frontend may use `experience`/`enabledModules`
 to decide what to render, but every data call is independently authorized.
 """
+
 from apps.accounts.authorization import current_membership, effective_permissions
 from apps.business.models import DEFAULT_VOCABULARY, BusinessProfile
 

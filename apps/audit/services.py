@@ -1,4 +1,5 @@
 """Helper to write audit entries from anywhere in a tenant request."""
+
 from django.db import connection
 
 from apps.audit.models import AuditLog

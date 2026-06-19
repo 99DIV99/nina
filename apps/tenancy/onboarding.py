@@ -4,11 +4,12 @@ seed first service/hours/staff -> return a 'you're live' link.
 
 Runs in the PUBLIC schema, then enters the freshly created tenant schema to seed.
 """
+
 import logging
 
 from django.conf import settings
 from django.db import transaction
-from django_tenants.utils import schema_context, tenant_context
+from django_tenants.utils import tenant_context
 
 from apps.accounts.models import Membership, Role, User
 from apps.common.exceptions import DomainError
@@ -33,9 +34,7 @@ def onboard(
     if User.objects.filter(email=email).exists():
         raise DomainError("An account with that email already exists.", code="email_taken")
 
-    business = create_business(
-        name=business_name, subdomain=subdomain, business_type=business_type
-    )
+    business = create_business(name=business_name, subdomain=subdomain, business_type=business_type)
 
     owner = User.objects.create_user(email=email, password=password, full_name=full_name)
     Membership.objects.create(user=owner, business=business, role=Role.OWNER, is_active=True)
@@ -67,9 +66,7 @@ def _seed_tenant(business: Business, *, owner_full_name: str) -> None:
         )
         profile.save()
 
-        staff = StaffMember.objects.create(
-            name=owner_full_name or "Owner", is_active=True
-        )
+        staff = StaffMember.objects.create(name=owner_full_name or "Owner", is_active=True)
         service = Service.objects.create(
             name="Standard appointment",
             duration_minutes=30,

@@ -1,4 +1,5 @@
 """Seed a demo tenant so you can poke the API locally: `manage.py seed_demo`."""
+
 from django.core.management.base import BaseCommand
 
 from apps.tenancy.models import BusinessType

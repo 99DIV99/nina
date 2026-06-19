@@ -1,4 +1,5 @@
 """Per-tenant audit log for sensitive actions (B2 / B10)."""
+
 from django.db import models
 
 

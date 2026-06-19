@@ -4,6 +4,7 @@ PUBLIC_SCHEMA_URLCONF (onboarding, operator, health). Idempotent.
 
 Run once after `migrate_schemas --shared`.
 """
+
 from django.core.management.base import BaseCommand
 
 from apps.tenancy.models import Business, Domain

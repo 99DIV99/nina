@@ -1,4 +1,5 @@
 """Liveness and readiness probes (B0)."""
+
 from django.db import connection
 from django.http import JsonResponse
 

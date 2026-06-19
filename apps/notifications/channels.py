@@ -3,6 +3,7 @@ Channel abstraction (B5). Notifications are sent through a Channel interface so
 SMS (a paid add-on) can be added without touching callers. Email is the default;
 SMS is gated by Business.has_sms.
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,8 +19,7 @@ class Channel(ABC):
     name: str
 
     @abstractmethod
-    def send(self, *, to: str, subject: str, body: str, attachments=None) -> None:
-        ...
+    def send(self, *, to: str, subject: str, body: str, attachments=None) -> None: ...
 
 
 class EmailChannel(Channel):

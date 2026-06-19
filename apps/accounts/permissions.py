@@ -1,4 +1,5 @@
 """DRF permission classes that enforce the authorization layer on every endpoint."""
+
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.authorization import current_membership, effective_permissions

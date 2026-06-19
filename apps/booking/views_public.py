@@ -3,6 +3,7 @@ Public, unauthenticated booking API (B4). Guests can browse services, see real
 availability, and book without an account. Management of an existing booking is
 authorized by a signed token, never by a guessable id.
 """
+
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
@@ -11,7 +12,6 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.booking import services as booking_services
-from apps.booking.availability import generate_slots
 from apps.booking.models import Appointment, Customer, Service, StaffMember
 from apps.booking.serializers import AvailabilityQuerySerializer, ServiceSerializer
 from apps.booking.views import _availability_payload
@@ -86,7 +86,9 @@ class PublicAvailabilityView(APIView):
         try:
             return Response(_availability_payload(ser.validated_data))
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code)
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
 
 
 class GuestBookingSerializer(serializers.Serializer):
@@ -130,7 +132,9 @@ class PublicBookingCreateView(APIView):
                 max_advance_days=profile.max_advance_days,
             )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code)
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
 
         return Response(
             {
@@ -154,20 +158,34 @@ class PublicBookingManageView(APIView):
         token = request.data.get("token", "")
         appt = _resolve_token(token)
         if appt is None:
-            return Response({"error": {"code": "invalid_token", "message": "Invalid or expired token."}}, status=404)
+            return Response(
+                {"error": {"code": "invalid_token", "message": "Invalid or expired token."}},
+                status=404,
+            )
         action = request.data.get("action")
         profile = BusinessProfile.get_solo()
         try:
             if action == "cancel":
                 appt = booking_services.cancel(appt)
             elif action == "reschedule":
-                new_start = serializers.DateTimeField().to_internal_value(request.data.get("start_at"))
+                new_start = serializers.DateTimeField().to_internal_value(
+                    request.data.get("start_at")
+                )
                 appt = booking_services.reschedule(
-                    appt, new_start=new_start, enforce_availability=True,
-                    lead_minutes=profile.booking_lead_minutes, max_advance_days=profile.max_advance_days,
+                    appt,
+                    new_start=new_start,
+                    enforce_availability=True,
+                    lead_minutes=profile.booking_lead_minutes,
+                    max_advance_days=profile.max_advance_days,
                 )
             else:
-                return Response({"error": {"code": "bad_action", "message": "Unknown action."}}, status=400)
+                return Response(
+                    {"error": {"code": "bad_action", "message": "Unknown action."}}, status=400
+                )
         except DomainError as exc:
-            return Response({"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code)
-        return Response({"id": appt.id, "status": appt.status, "start_at": appt.start_at.isoformat()})
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
+        return Response(
+            {"id": appt.id, "status": appt.status, "start_at": appt.start_at.isoformat()}
+        )

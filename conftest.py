@@ -5,6 +5,7 @@ django-tenants needs real schemas, so tenant-creating tests run with
 `transaction=True` (no outer wrapping transaction) and we create/drop schemas
 explicitly. Fixtures here build isolated tenants A and B for the isolation suite.
 """
+
 import pytest
 from django.db import connection
 
@@ -12,7 +13,9 @@ from apps.accounts.models import Membership, Role, User
 from apps.tenancy.models import Business, BusinessType, Domain
 
 
-def _make_tenant(name: str, schema: str, subdomain: str, business_type=BusinessType.BARBER) -> Business:
+def _make_tenant(
+    name: str, schema: str, subdomain: str, business_type=BusinessType.BARBER
+) -> Business:
     existing = Business.objects.filter(schema_name=schema).first()
     if existing:
         existing.delete(force_drop=True)

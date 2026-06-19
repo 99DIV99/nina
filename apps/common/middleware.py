@@ -1,4 +1,5 @@
 """Request-scoped context: request id + resolved tenant for logs/tracing."""
+
 import logging
 import uuid
 

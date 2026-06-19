@@ -7,6 +7,7 @@ Authorization rule (non-negotiable): the client never asserts its tenant, role,
 or permissions. Role is ALWAYS re-derived server-side from `Membership`, scoped
 to the tenant resolved from the request host.
 """
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone

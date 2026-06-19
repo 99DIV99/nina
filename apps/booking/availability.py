@@ -7,6 +7,7 @@ appointments - time off, honoring service duration, buffers, booking lead time,
 and the max-advance window. All timezone math is explicit; slots are produced in
 UTC and rendered to the caller's timezone at the edge.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -63,7 +64,9 @@ def _working_intervals(staff: StaffMember, day: date_cls, tz: ZoneInfo) -> list[
         end_day = day if hours.end_time > hours.start_time else day + timedelta(days=1)
         local_end = datetime.combine(end_day, hours.end_time, tzinfo=tz)
         intervals.append(
-            _Interval(local_start.astimezone(ZoneInfo("UTC")), local_end.astimezone(ZoneInfo("UTC")))
+            _Interval(
+                local_start.astimezone(ZoneInfo("UTC")), local_end.astimezone(ZoneInfo("UTC"))
+            )
         )
     return intervals
 
@@ -87,7 +90,9 @@ def _subtract(intervals: list[_Interval], blocks: list[_Interval]) -> list[_Inte
     return result
 
 
-def _busy_blocks(staff: StaffMember, window_start: datetime, window_end: datetime, service: Service) -> list[_Interval]:
+def _busy_blocks(
+    staff: StaffMember, window_start: datetime, window_end: datetime, service: Service
+) -> list[_Interval]:
     """Existing appointments (expanded by buffers) + time off, as UTC intervals."""
     blocks: list[_Interval] = []
 
@@ -130,9 +135,9 @@ def generate_slots(
         latest = now + timedelta(days=max_advance_days)
 
     window_start = datetime.combine(range_start, time.min, tzinfo=tz).astimezone(ZoneInfo("UTC"))
-    window_end = datetime.combine(
-        range_end + timedelta(days=1), time.min, tzinfo=tz
-    ).astimezone(ZoneInfo("UTC"))
+    window_end = datetime.combine(range_end + timedelta(days=1), time.min, tzinfo=tz).astimezone(
+        ZoneInfo("UTC")
+    )
 
     busy = _busy_blocks(staff, window_start, window_end, service)
 

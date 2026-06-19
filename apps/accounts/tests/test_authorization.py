@@ -5,13 +5,13 @@ PERMANENT GATE: authorization (B2).
 - role escalation denied (front_desk cannot perform owner-only writes)
 - a forged "I'm a clinic" request gets no clinic data/permissions
 """
+
 import pytest
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.models import Membership, Role
+from apps.accounts.models import Role
 from apps.tenancy.models import BusinessType
-
 from conftest import add_member, make_user
 
 pytestmark = pytest.mark.django_db(transaction=True)

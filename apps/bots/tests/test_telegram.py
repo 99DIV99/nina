@@ -1,5 +1,6 @@
 """B7: per-business Telegram bot — verified webhook, tenant-scoped, books via pipeline."""
-from datetime import datetime, timedelta
+
+from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -19,7 +20,11 @@ UTC = ZoneInfo("UTC")
 @pytest.fixture
 def captured_sends(monkeypatch):
     sent = []
-    monkeypatch.setattr(tg, "send_message", lambda token, chat_id, text, **kw: sent.append((token, chat_id, text)) or True)
+    monkeypatch.setattr(
+        tg,
+        "send_message",
+        lambda token, chat_id, text, **kw: sent.append((token, chat_id, text)) or True,
+    )
     return sent
 
 
@@ -39,9 +44,13 @@ def test_unverified_update_rejected(two_tenants, captured_sends):
     with tenant_context(alpha):
         Bot.objects.create(name="A", telegram_bot_token="t", is_enabled=True)
     client = APIClient()
-    resp = client.post("/api/v1/bots/telegram/webhook", _update("1", "hi"),
-                       format="json", HTTP_HOST="alpha.localhost",
-                       HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="wrong")
+    resp = client.post(
+        "/api/v1/bots/telegram/webhook",
+        _update("1", "hi"),
+        format="json",
+        HTTP_HOST="alpha.localhost",
+        HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="wrong",
+    )
     assert resp.status_code == 401
     assert captured_sends == []
 
@@ -53,9 +62,13 @@ def test_telegram_secret_is_tenant_scoped(two_tenants, captured_sends):
         secret = bot.telegram_webhook_secret
     client = APIClient()
     # alpha's secret against beta's host -> not found in beta schema -> 401.
-    resp = client.post("/api/v1/bots/telegram/webhook", _update("9", "hi"),
-                       format="json", HTTP_HOST="beta.localhost",
-                       HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=secret)
+    resp = client.post(
+        "/api/v1/bots/telegram/webhook",
+        _update("9", "hi"),
+        format="json",
+        HTTP_HOST="beta.localhost",
+        HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=secret,
+    )
     assert resp.status_code == 401
 
 
@@ -71,11 +84,22 @@ def test_full_booking_over_telegram(tenant_factory, captured_sends):
     client = APIClient()
 
     def send(text):
-        return client.post("/api/v1/bots/telegram/webhook", _update("777", text),
-                           format="json", HTTP_HOST="tg.localhost",
-                           HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=secret)
+        return client.post(
+            "/api/v1/bots/telegram/webhook",
+            _update("777", text),
+            format="json",
+            HTTP_HOST="tg.localhost",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=secret,
+        )
 
-    for msg in ["hello", "services", f"service #{svc_id}", f"{day.isoformat()} 10:00", "guest@tg.io", "book"]:
+    for msg in [
+        "hello",
+        "services",
+        f"service #{svc_id}",
+        f"{day.isoformat()} 10:00",
+        "guest@tg.io",
+        "book",
+    ]:
         assert send(msg).status_code == 200
 
     # One conversation on the telegram channel, and a pending bot appointment.

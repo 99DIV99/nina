@@ -1,13 +1,6 @@
 from rest_framework import serializers
 
-from apps.booking.models import (
-    Appointment,
-    BusinessHours,
-    Customer,
-    Service,
-    StaffMember,
-    TimeOff,
-)
+from apps.booking.models import Appointment, BusinessHours, Customer, Service, StaffMember, TimeOff
 
 
 class StaffSerializer(serializers.ModelSerializer):
@@ -24,8 +17,15 @@ class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = (
-            "id", "name", "description", "duration_minutes", "buffer_before_minutes",
-            "buffer_after_minutes", "price", "is_active", "staff",
+            "id",
+            "name",
+            "description",
+            "duration_minutes",
+            "buffer_before_minutes",
+            "buffer_after_minutes",
+            "price",
+            "is_active",
+            "staff",
         )
 
 
@@ -64,8 +64,18 @@ class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = (
-            "id", "service", "staff", "customer", "start_at", "end_at", "status",
-            "price", "source", "notes", "created_at", "updated_at",
+            "id",
+            "service",
+            "staff",
+            "customer",
+            "start_at",
+            "end_at",
+            "status",
+            "price",
+            "source",
+            "notes",
+            "created_at",
+            "updated_at",
         )
         read_only_fields = ("end_at", "status", "created_at", "updated_at")
 
@@ -80,7 +90,9 @@ class AppointmentCreateSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     # Staff override for walk-ins / out-of-hours manual bookings.
     override_availability = serializers.BooleanField(required=False, default=False)
-    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True
+    )
 
 
 class RescheduleSerializer(serializers.Serializer):

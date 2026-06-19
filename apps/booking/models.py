@@ -8,6 +8,7 @@ Correctness rules (non-negotiable):
 - All datetimes are stored timezone-aware in UTC (USE_TZ=True). Availability is
   computed in the staff/business local timezone and converted to UTC.
 """
+
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import DateTimeRangeField, RangeOperators
 from django.db import models

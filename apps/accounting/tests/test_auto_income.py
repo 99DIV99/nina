@@ -1,4 +1,5 @@
 """B6 auto-income: completed appointment -> exactly one income transaction."""
+
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -22,7 +23,11 @@ def test_completion_creates_single_income(tenant_factory):
         service.price = "25.00"
         service.save()
         appt = booking_services.create_appointment(
-            service=service, staff=staff, start_at=WHEN, enforce_availability=False, price="25.00",
+            service=service,
+            staff=staff,
+            start_at=WHEN,
+            enforce_availability=False,
+            price="25.00",
         )
         booking_services.complete(appt)
         income = Transaction.objects.filter(type=TransactionType.INCOME)
@@ -30,18 +35,21 @@ def test_completion_creates_single_income(tenant_factory):
         assert str(income.first().amount) == "25.00"
         # Idempotent: re-firing the signal does not double-count.
         from apps.accounting.services import record_income_for_appointment
+
         record_income_for_appointment(appt)
         assert Transaction.objects.filter(type=TransactionType.INCOME).count() == 1
 
 
 def test_no_income_when_accounting_disabled(tenant_factory):
-    biz = tenant_factory(name="GenCo", schema="t_gen", subdomain="gen",
-                         business_type="general")
+    biz = tenant_factory(name="GenCo", schema="t_gen", subdomain="gen", business_type="general")
     assert not biz.has_accounting
     with tenant_context(biz):
         staff, service = build_staff_service(duration=30)
         appt = booking_services.create_appointment(
-            service=service, staff=staff, start_at=WHEN, enforce_availability=False,
+            service=service,
+            staff=staff,
+            start_at=WHEN,
+            enforce_availability=False,
         )
         booking_services.complete(appt)
         assert Transaction.objects.count() == 0

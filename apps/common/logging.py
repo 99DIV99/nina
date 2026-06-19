@@ -1,4 +1,5 @@
 """JSON log formatter that enriches records with tenant/request context."""
+
 import json
 import logging
 from datetime import datetime, timezone

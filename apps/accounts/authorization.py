@@ -9,6 +9,7 @@ NEVER read a role, tenant, type, or permission claim from the request body.
 user and the tenant resolved from the host, it returns the active Membership or
 None. From the membership we derive the role; from the role we derive permissions.
 """
+
 from __future__ import annotations
 
 from django.db import connection
@@ -30,19 +31,35 @@ P_SETTINGS_MANAGE = "settings.manage"
 P_BILLING_MANAGE = "billing.manage"
 
 _ALL = {
-    P_BOOKING_VIEW, P_BOOKING_MANAGE, P_CUSTOMER_VIEW, P_CUSTOMER_MANAGE,
-    P_SERVICE_MANAGE, P_STAFF_MANAGE, P_ACCOUNTING_VIEW, P_ACCOUNTING_MANAGE,
-    P_RECORDS_VIEW, P_BOTS_MANAGE, P_SETTINGS_MANAGE, P_BILLING_MANAGE,
+    P_BOOKING_VIEW,
+    P_BOOKING_MANAGE,
+    P_CUSTOMER_VIEW,
+    P_CUSTOMER_MANAGE,
+    P_SERVICE_MANAGE,
+    P_STAFF_MANAGE,
+    P_ACCOUNTING_VIEW,
+    P_ACCOUNTING_MANAGE,
+    P_RECORDS_VIEW,
+    P_BOTS_MANAGE,
+    P_SETTINGS_MANAGE,
+    P_BILLING_MANAGE,
 }
 
 ROLE_PERMISSIONS: dict[str, set[str]] = {
     Role.OWNER: set(_ALL),
     Role.FRONT_DESK: {
-        P_BOOKING_VIEW, P_BOOKING_MANAGE, P_CUSTOMER_VIEW, P_CUSTOMER_MANAGE,
-        P_SERVICE_MANAGE, P_ACCOUNTING_VIEW,
+        P_BOOKING_VIEW,
+        P_BOOKING_MANAGE,
+        P_CUSTOMER_VIEW,
+        P_CUSTOMER_MANAGE,
+        P_SERVICE_MANAGE,
+        P_ACCOUNTING_VIEW,
     },
     Role.PRACTITIONER: {
-        P_BOOKING_VIEW, P_BOOKING_MANAGE, P_CUSTOMER_VIEW, P_RECORDS_VIEW,
+        P_BOOKING_VIEW,
+        P_BOOKING_MANAGE,
+        P_CUSTOMER_VIEW,
+        P_RECORDS_VIEW,
     },
 }
 

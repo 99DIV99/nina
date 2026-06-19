@@ -1,10 +1,11 @@
 """Accounting API (B6). Flag-gated + permission-gated."""
+
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounting import services
-from apps.accounting.models import Invoice, Transaction, TransactionType
+from apps.accounting.models import Invoice, Transaction
 from apps.accounting.serializers import (
     ExpenseCreateSerializer,
     InvoiceSerializer,

@@ -1,4 +1,5 @@
 """Render a NotificationLog into (subject, body, attachments). Per-tenant branded."""
+
 from apps.business.models import BusinessProfile
 
 
@@ -7,7 +8,9 @@ def render_notification(log):
 
     profile = BusinessProfile.get_solo()
     brand = profile.display_name or "Your booking"
-    appt = Appointment.objects.filter(id=log.appointment_id).select_related("service", "staff").first()
+    appt = (
+        Appointment.objects.filter(id=log.appointment_id).select_related("service", "staff").first()
+    )
 
     when = appt.start_at.astimezone() if appt else None
     when_str = when.strftime("%a %d %b %Y, %H:%M %Z") if when else ""

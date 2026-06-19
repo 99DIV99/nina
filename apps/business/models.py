@@ -5,6 +5,7 @@ The Business (tenant) row with its feature flags lives in the PUBLIC schema
 (apps.tenancy.Business). This module holds the per-schema, editable presentation
 config. It is a singleton per tenant schema.
 """
+
 from django.db import models
 
 

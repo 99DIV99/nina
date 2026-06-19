@@ -1,4 +1,5 @@
 """Structured logging configuration (JSON in prod, readable in dev)."""
+
 import os
 
 _LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO")

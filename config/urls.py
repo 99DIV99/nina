@@ -5,6 +5,7 @@ These routes are served when a request resolves to a tenant schema (e.g.
 acme.yourapp.com). The schema has already been switched by TenantMainMiddleware,
 so everything here operates inside the tenant's isolation boundary.
 """
+
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 

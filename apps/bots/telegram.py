@@ -9,6 +9,7 @@ handle_message pipeline, and the reply is sent back via the Telegram Bot API.
 Outbound HTTP is isolated here so it can be mocked in tests and swapped for a
 queued/Celery sender in production.
 """
+
 from __future__ import annotations
 
 import json

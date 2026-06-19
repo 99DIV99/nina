@@ -6,6 +6,7 @@ tool use with the scoped tools in tools.py) can be swapped in via settings.
 An LLM adapter MUST be constrained to the tools in apps.bots.tools and the
 current tenant -- it never gets a free-form database capability.
 """
+
 from __future__ import annotations
 
 import re
@@ -14,7 +15,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Intent:
-    name: str  # greet | list_services | choose_service | pick_time | provide_contact | book | fallback
+    # name ∈ greet | list_services | choose_service | pick_time | provide_contact | book | fallback
+    name: str
     entities: dict = field(default_factory=dict)
 
 

@@ -6,6 +6,7 @@ Bot APIs (B7).
 - Panel endpoints: configure bots + the human-in-the-loop review queue
   (confirm/reject bot-created bookings), gated by bots.manage.
 """
+
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -25,8 +26,14 @@ class BotSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bot
         fields = (
-            "id", "name", "is_enabled", "greeting", "channels",
-            "exposed_service_ids", "rules", "created_at",
+            "id",
+            "name",
+            "is_enabled",
+            "greeting",
+            "channels",
+            "exposed_service_ids",
+            "rules",
+            "created_at",
         )
         read_only_fields = ("created_at",)
 
@@ -101,7 +108,9 @@ class ReviewQueueView(APIView):
         elif decision == "reject":
             booking_services.cancel(appt)
         else:
-            return Response({"error": {"code": "bad_decision", "message": "confirm|reject"}}, status=400)
+            return Response(
+                {"error": {"code": "bad_decision", "message": "confirm|reject"}}, status=400
+            )
         return Response(AppointmentSerializer(appt).data)
 
 
@@ -116,17 +125,24 @@ class WidgetMessageView(APIView):
         secret = request.headers.get("X-Bot-Secret") or request.data.get("secret", "")
         bot = Bot.objects.filter(secret=secret, is_enabled=True).first() if secret else None
         if bot is None:
-            return Response({"error": {"code": "bot_auth", "message": "Invalid bot credential."}}, status=401)
+            return Response(
+                {"error": {"code": "bot_auth", "message": "Invalid bot credential."}}, status=401
+            )
 
         text = (request.data.get("text") or "")[:1000].strip()  # input sanitation: cap length
         if not text:
-            return Response({"error": {"code": "empty", "message": "Message required."}}, status=400)
+            return Response(
+                {"error": {"code": "empty", "message": "Message required."}}, status=400
+            )
 
         conversation_id = request.data.get("conversation_id")
         if conversation_id:
             conversation = Conversation.objects.filter(id=conversation_id, bot=bot).first()
             if conversation is None:
-                return Response({"error": {"code": "no_conversation", "message": "Unknown conversation."}}, status=404)
+                return Response(
+                    {"error": {"code": "no_conversation", "message": "Unknown conversation."}},
+                    status=404,
+                )
         else:
             conversation = Conversation.objects.create(
                 bot=bot, channel="web", external_id=request.data.get("session_id", "")
@@ -159,14 +175,18 @@ class TelegramWebhookView(APIView):
             else None
         )
         if bot is None or not bot.telegram_bot_token:
-            return Response({"error": {"code": "bot_auth", "message": "Unverified update."}}, status=401)
+            return Response(
+                {"error": {"code": "bot_auth", "message": "Unverified update."}}, status=401
+            )
 
         parsed = parse_update(request.data if isinstance(request.data, dict) else {})
         if parsed is None:
             return Response({"ok": True})  # ack non-text updates so Telegram stops retrying
 
         conversation, _ = Conversation.objects.get_or_create(
-            bot=bot, channel="telegram", external_id=parsed["chat_id"],
+            bot=bot,
+            channel="telegram",
+            external_id=parsed["chat_id"],
             defaults={"state": {"name": parsed["from_name"]}},
         )
         text = parsed["text"][:1000].strip()
@@ -188,7 +208,8 @@ class TranscriptView(APIView):
             {
                 "conversation_id": conversation.id,
                 "messages": [
-                    {"role": m.role, "text": m.text, "at": m.created_at.isoformat()} for m in messages
+                    {"role": m.role, "text": m.text, "at": m.created_at.isoformat()}
+                    for m in messages
                 ],
             }
         )

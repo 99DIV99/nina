@@ -1,4 +1,5 @@
 """Public business endpoint (F5 support): unauthenticated branding/vocabulary."""
+
 import pytest
 from django_tenants.utils import tenant_context
 from rest_framework.test import APIClient

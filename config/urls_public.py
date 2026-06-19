@@ -5,6 +5,7 @@ Served on the apex/marketing domain and the `api`/`app` host. No tenant schema
 is active here. Onboarding (which creates tenants), the operator console, and
 platform billing webhooks live in the public schema.
 """
+
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 

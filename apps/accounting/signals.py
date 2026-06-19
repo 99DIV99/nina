@@ -1,4 +1,5 @@
 """Connect booking signals to accounting (B6 auto-income)."""
+
 from django.dispatch import receiver
 
 from apps.booking.signals import appointment_completed
