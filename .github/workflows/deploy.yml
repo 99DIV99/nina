@@ -8,7 +8,7 @@ on:
     branches: [main, master]
 
 concurrency:
-  group: backend-deploy
+  group: nina-deploy # shared with frontend-deploy: never touch the stack concurrently
   cancel-in-progress: false
 
 jobs:
@@ -16,20 +16,21 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy over SSH
+      - name: Deploy backend services in the unified stack
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          # Optional: set VPS_SSH_PORT secret if not 22.
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
           script_stop: true
           script: |
             set -euo pipefail
-            cd ${{ secrets.BACKEND_DIR }}            # e.g. /opt/nina/backend
-            git pull --ff-only
-            docker compose -f docker-compose.prod.yml --env-file .env.prod build
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-            APEX_HOSTS="${{ secrets.APEX_HOSTS }}" bash deploy/release.sh
+            cd /opt/nina/backend
+            git config --global --add safe.directory /opt/nina/backend
+            git pull --ff-only origin master
+            CO="docker compose -f docker-compose.prod.yml --env-file .env.prod"
+            # Rebuild/refresh only the backend-owned services + datastores.
+            $CO up -d --build db redis web worker beat
+            bash deploy/release.sh
             docker image prune -f

@@ -1,11 +1,14 @@
-# Production backend stack. One web (gunicorn) + Celery worker + Celery beat,
-# fronted by the HOST nginx (not in this file). Postgres/Redis are bound to
-# localhost so they are never exposed to the internet.
+# Unified production stack: frontend + backend (web/worker/beat) + Postgres +
+# Redis, in ONE compose. The backend repo is the orchestrator; the frontend is
+# built from the sibling clone at ../frontend. Host nginx proxies to the two
+# published localhost ports (8000 backend, 3000 frontend).
 #
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 #
-# Migrations + collectstatic are NOT run automatically here (to avoid three
-# services racing on the same DB) — run deploy/release.sh after `up`.
+# Migrations/collectstatic are not auto-run (so the 3 backend services don't race
+# on the DB) — run deploy/release.sh after `up`.
+
+name: nina
 
 services:
   db:
@@ -18,8 +21,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
@@ -32,8 +33,6 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
-    ports:
-      - "127.0.0.1:6379:6379"
 
   web:
     build:
@@ -82,6 +81,26 @@ services:
     depends_on:
       - web
       - redis
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NINA_BASE_DOMAIN: ${NINA_BASE_DOMAIN}
+        NINA_API_PROTO: ${NINA_API_PROTO}
+        NINA_API_PORT: ${NINA_API_PORT}
+        NINA_API_BASE: ${NINA_API_BASE}
+    image: nina-frontend:latest
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0" # must bind all interfaces inside the container
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - web
 
 volumes:
   pgdata:
