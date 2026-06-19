@@ -214,6 +214,10 @@ RESERVED_SUBDOMAINS = {
     "operator", "system", "root", "security", "auth", "login", "signup",
 }
 
+# Email
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@yourapp.com")
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^https?://([a-z0-9-]+\.)?localhost(:\d+)?$"]
 
