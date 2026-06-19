@@ -29,6 +29,13 @@ class Bot(models.Model):
     # Scopes the bot to this tenant; never accepted across schemas.
     secret = models.CharField(max_length=64, default=_gen_token, db_index=True)
 
+    # --- Telegram channel ---
+    # Bot API token from @BotFather (per tenant; outbound sendMessage uses it).
+    telegram_bot_token = models.CharField(max_length=128, blank=True)
+    # Secret token we register with setWebhook; Telegram echoes it in the
+    # X-Telegram-Bot-Api-Secret-Token header so we can verify inbound updates.
+    telegram_webhook_secret = models.CharField(max_length=64, default=_gen_token, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
