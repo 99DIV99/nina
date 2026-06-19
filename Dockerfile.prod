@@ -1,0 +1,32 @@
+# Production image: gunicorn-served Django (also used by the Celery worker/beat,
+# which override the command). Single stage — the app is pure Python.
+FROM python:3.10-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements/ requirements/
+RUN pip install --upgrade pip && pip install -r requirements/prod.txt
+
+COPY . .
+
+# Non-root runtime user.
+RUN useradd --create-home --uid 10001 nina && chown -R nina:nina /app
+USER nina
+
+EXPOSE 8000
+
+# 3 workers is a sane default for a small VPS; tune via $GUNICORN_CMD_ARGS.
+CMD ["gunicorn", "config.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "3", \
+     "--timeout", "60", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

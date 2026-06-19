@@ -1,12 +1,21 @@
 """Production settings: strict security posture."""
+
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from .base import *  # noqa: F401,F403
-from .base import env
+from .base import MIDDLEWARE, STORAGES, env
 
 DEBUG = False
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")  # required; fail loudly if unset
+
+# Serve hashed static files from gunicorn (nginx proxies /static here).
+# WhiteNoise must sit immediately after SecurityMiddleware.
+MIDDLEWARE = list(MIDDLEWARE)
+MIDDLEWARE.insert(
+    MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+)
 
 # --- Security hardening (B10) ---
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -21,9 +30,13 @@ SESSION_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://([a-z0-9-]+\.)?" + env("BASE_DOMAIN", default="yourapp.com").replace(".", r"\.") + r"$"]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://([a-z0-9-]+\.)?"
+    + env("BASE_DOMAIN", default="yourapp.com").replace(".", r"\.")
+    + r"$"
+]
 
-STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"  # noqa: F405
+STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 _sentry_dsn = env("SENTRY_DSN", default="")
 if _sentry_dsn:

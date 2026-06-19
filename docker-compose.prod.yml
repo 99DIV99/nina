@@ -1,0 +1,90 @@
+# Production backend stack. One web (gunicorn) + Celery worker + Celery beat,
+# fronted by the HOST nginx (not in this file). Postgres/Redis are bound to
+# localhost so they are never exposed to the internet.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Migrations + collectstatic are NOT run automatically here (to avoid three
+# services racing on the same DB) — run deploy/release.sh after `up`.
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: nina-backend:latest
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    image: nina-backend:latest
+    restart: unless-stopped
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency", "2"]
+    env_file: .env.prod
+    environment:
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      - web
+      - redis
+
+  beat:
+    image: nina-backend:latest
+    restart: unless-stopped
+    command: ["celery", "-A", "config", "beat", "-l", "info",
+              "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    env_file: .env.prod
+    environment:
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      - web
+      - redis
+
+volumes:
+  pgdata:
+  redisdata:
+  staticfiles:
+  media:
