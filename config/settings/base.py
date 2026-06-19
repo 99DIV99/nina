@@ -148,7 +148,12 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-STATICFILES_STORAGE = "django_tenants.staticfiles.storage.TenantStaticFilesStorage"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "django_tenants.staticfiles.storage.TenantStaticFilesStorage"
+    },
+}
 
 # ---------------------------------------------------------------------------
 # DRF + JWT

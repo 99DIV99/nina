@@ -23,7 +23,7 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://([a-z0-9-]+\.)?" + env("BASE_DOMAIN", default="yourapp.com").replace(".", r"\.") + r"$"]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"  # noqa: F405
 
 _sentry_dsn = env("SENTRY_DSN", default="")
 if _sentry_dsn:

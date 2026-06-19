@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from django.db import IntegrityError, transaction
+import time
+
+from django.db import IntegrityError, OperationalError, transaction
 from django.utils import timezone
 
 from apps.booking import signals
@@ -55,7 +57,6 @@ def _slot_is_offered(service: Service, staff: StaffMember, start_at: datetime, *
     return any(abs((s.start - start_at).total_seconds()) < 1 for s in slots)
 
 
-@transaction.atomic
 def create_appointment(
     *,
     service: Service,
@@ -71,18 +72,36 @@ def create_appointment(
     max_advance_days: int | None = None,
 ) -> Appointment:
     """Atomically create an appointment. The DB exclusion constraint is the final,
-    race-proof guarantee against double-booking."""
+    race-proof guarantee against double-booking. Under high contention Postgres may
+    abort one racer as a deadlock victim; we retry it briefly before giving up."""
     if timezone.is_naive(start_at):
         raise DomainError("start_at must be timezone-aware.", code="naive_datetime")
 
     _validate_actors(service, staff)
-    end_at = start_at + timedelta(minutes=service.duration_minutes)
 
     if enforce_availability and not _slot_is_offered(
         service, staff, start_at, lead_minutes=lead_minutes, max_advance_days=max_advance_days
     ):
         raise SlotUnavailable("That time is not available.")
 
+    last_exc: OperationalError | None = None
+    for attempt in range(3):
+        try:
+            return _insert_appointment(
+                service=service, staff=staff, start_at=start_at, customer=customer,
+                source=source, price=price, notes=notes, status=status,
+            )
+        except OperationalError as exc:  # deadlock victim -> brief backoff + retry
+            if "deadlock" not in str(exc).lower():
+                raise
+            last_exc = exc
+            time.sleep(0.05 * (attempt + 1))
+    raise DoubleBooking("That slot was just taken.") from last_exc
+
+
+@transaction.atomic
+def _insert_appointment(*, service, staff, start_at, customer, source, price, notes, status):
+    end_at = start_at + timedelta(minutes=service.duration_minutes)
     appointment = Appointment(
         service=service,
         staff=staff,

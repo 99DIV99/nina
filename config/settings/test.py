@@ -4,6 +4,9 @@ from .base import *  # noqa: F401,F403
 DEBUG = False
 ALLOWED_HOSTS = ["*"]
 
+# Long enough to satisfy JWT HMAC key-length recommendations in tests.
+SECRET_KEY = "test-secret-key-0123456789-abcdefghijklmnopqrstuvwxyz"
+
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # faster tests
 
 CELERY_TASK_ALWAYS_EAGER = True
