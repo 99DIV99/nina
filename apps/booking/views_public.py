@@ -15,10 +15,44 @@ from apps.booking.availability import generate_slots
 from apps.booking.models import Appointment, Customer, Service, StaffMember
 from apps.booking.serializers import AvailabilityQuerySerializer, ServiceSerializer
 from apps.booking.views import _availability_payload
-from apps.business.models import BusinessProfile
+from apps.business.models import DEFAULT_VOCABULARY, BusinessProfile
 from apps.common.exceptions import DomainError
 
 _appt_signer = TimestampSigner(salt="nina.public.appointment")
+
+
+class PublicBusinessView(APIView):
+    """Public branding/vocabulary/policies for the booking page (F5).
+
+    Safe, non-PII fields only — enough to render a branded, correctly-worded,
+    timezone-aware booking flow without authentication.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    def get(self, request):
+        business = request.tenant
+        profile = BusinessProfile.get_solo()
+        base_vocab = DEFAULT_VOCABULARY.get(business.experience, DEFAULT_VOCABULARY["general"])
+        vocabulary = {**base_vocab, **(profile.vocabulary or {})}
+        return Response(
+            {
+                "business": {"name": business.name, "is_active": business.is_active},
+                "experience": business.experience,
+                "branding": {
+                    "displayName": profile.display_name or business.name,
+                    "logoUrl": profile.logo_url,
+                    "primaryColor": profile.primary_color,
+                    "accentColor": profile.accent_color,
+                },
+                "vocabulary": vocabulary,
+                "policies": {
+                    "timezone": profile.timezone,
+                    "cancellationWindowHours": profile.cancellation_window_hours,
+                },
+            }
+        )
 
 
 def manage_token(appointment: Appointment) -> str:
