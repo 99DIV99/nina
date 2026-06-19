@@ -17,8 +17,12 @@ RUN pip install --upgrade pip && pip install -r requirements/prod.txt
 
 COPY . .
 
-# Non-root runtime user.
-RUN useradd --create-home --uid 10001 nina && chown -R nina:nina /app
+# Non-root runtime user. Pre-create the static/media dirs so that when Docker
+# initialises the named volumes from this image, they inherit nina ownership —
+# otherwise a fresh volume is root-owned and collectstatic (run as nina) fails.
+RUN useradd --create-home --uid 10001 nina \
+    && mkdir -p /app/staticfiles /app/media \
+    && chown -R nina:nina /app
 USER nina
 
 EXPOSE 8000
