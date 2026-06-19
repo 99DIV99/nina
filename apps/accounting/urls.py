@@ -1,5 +1,15 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from apps.accounting.views import InvoiceViewSet, ReportView, TransactionViewSet
 
 app_name = "accounting"
 
-urlpatterns: list = []  # populated in Phase B6/B7
+router = DefaultRouter()
+router.register("transactions", TransactionViewSet)
+router.register("invoices", InvoiceViewSet)
+
+urlpatterns = [
+    path("reports/period", ReportView.as_view(), name="report-period"),
+    path("", include(router.urls)),
+]
