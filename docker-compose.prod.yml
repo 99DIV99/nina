@@ -97,9 +97,12 @@ services:
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0" # must bind all interfaces inside the container
-      # Server-side calls go straight to the backend container (no external DNS
-      # hairpin); the tenant is carried in the Host header by the API client.
-      NINA_INTERNAL_API: http://web:8000
+    # Reliable public resolvers: server-side calls reach the backend via the
+    # tenant hostname (Host header carries the tenant); the default container
+    # resolver was intermittently failing to resolve *.sslip.io (EAI_AGAIN).
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
