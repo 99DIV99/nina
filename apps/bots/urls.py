@@ -12,7 +12,7 @@ from apps.bots.views import (
 
 app_name = "bots"
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 router.register("bots", BotViewSet)
 
 urlpatterns = [

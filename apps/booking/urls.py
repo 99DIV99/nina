@@ -13,7 +13,7 @@ from apps.booking.views import (
 
 app_name = "booking"
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 router.register("services", ServiceViewSet)
 router.register("staff", StaffViewSet)
 router.register("customers", CustomerViewSet)

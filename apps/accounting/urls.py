@@ -5,7 +5,7 @@ from apps.accounting.views import InvoiceViewSet, ReportView, TransactionViewSet
 
 app_name = "accounting"
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 router.register("transactions", TransactionViewSet)
 router.register("invoices", InvoiceViewSet)
 
