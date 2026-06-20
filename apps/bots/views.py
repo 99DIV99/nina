@@ -23,6 +23,9 @@ from apps.bots.pipeline import handle_message
 
 
 class BotSerializer(serializers.ModelSerializer):
+    telegram_connected = serializers.SerializerMethodField()
+    bale_connected = serializers.SerializerMethodField()
+
     class Meta:
         model = Bot
         fields = (
@@ -33,9 +36,17 @@ class BotSerializer(serializers.ModelSerializer):
             "channels",
             "exposed_service_ids",
             "rules",
+            "telegram_connected",
+            "bale_connected",
             "created_at",
         )
-        read_only_fields = ("created_at",)
+        read_only_fields = ("created_at", "telegram_connected", "bale_connected")
+
+    def get_telegram_connected(self, obj) -> bool:
+        return bool(obj.telegram_bot_token)
+
+    def get_bale_connected(self, obj) -> bool:
+        return bool(obj.bale_bot_token)
 
 
 class BotViewSet(viewsets.ModelViewSet):
@@ -79,6 +90,37 @@ class BotViewSet(viewsets.ModelViewSet):
                 "webhook_url": webhook_url,
                 "webhook_secret": bot.telegram_webhook_secret,
                 "registered_with_telegram": registered,
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path="bale/connect")
+    def bale_connect(self, request, pk=None):
+        """Opt-in: a business supplies its Bale bot token; we register the
+        per-tenant webhook with Bale. The secret is carried in the webhook URL
+        (Bale does not echo a secret header). Gated by bots.manage (+ has_bots)."""
+        from apps.bots.bale import set_webhook
+
+        bot = self.get_object()
+        token = (request.data.get("bale_bot_token") or "").strip()
+        if not token:
+            return Response(
+                {"error": {"code": "token_required", "message": "bale_bot_token required"}},
+                status=400,
+            )
+        bot.bale_bot_token = token
+        bot.save(update_fields=["bale_bot_token"])
+
+        webhook_url = (
+            f"https://{request.get_host()}/api/v1/bots/bale/webhook" f"?s={bot.bale_webhook_secret}"
+        )
+        registered = False
+        if request.data.get("register", True):
+            registered = set_webhook(token, webhook_url)
+        return Response(
+            {
+                "webhook_url": webhook_url,
+                "webhook_secret": bot.bale_webhook_secret,
+                "registered_with_bale": registered,
             }
         )
 
@@ -192,6 +234,48 @@ class TelegramWebhookView(APIView):
         text = parsed["text"][:1000].strip()
         result = handle_message(bot, conversation, text)
         send_message(bot.telegram_bot_token, parsed["chat_id"], result["reply"])
+        return Response({"ok": True})
+
+
+class BaleWebhookView(APIView):
+    """
+    Inbound Bale updates for THIS tenant (host-routed). Bale does not echo a
+    secret header, so the per-bot secret travels in the ?s= query set at
+    setWebhook time; matched only within the current schema. Routes text through
+    the same pipeline as every other channel and replies via the Bale Bot API.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "bot"
+
+    def post(self, request):
+        from apps.bots.bale import parse_update, send_message
+
+        secret = request.query_params.get("s") or request.headers.get("X-Bale-Secret", "")
+        bot = (
+            Bot.objects.filter(bale_webhook_secret=secret, is_enabled=True).first()
+            if secret
+            else None
+        )
+        if bot is None or not bot.bale_bot_token:
+            return Response(
+                {"error": {"code": "bot_auth", "message": "Unverified update."}}, status=401
+            )
+
+        parsed = parse_update(request.data if isinstance(request.data, dict) else {})
+        if parsed is None:
+            return Response({"ok": True})  # ack non-text updates
+
+        conversation, _ = Conversation.objects.get_or_create(
+            bot=bot,
+            channel="bale",
+            external_id=parsed["chat_id"],
+            defaults={"state": {"name": parsed["from_name"]}},
+        )
+        text = parsed["text"][:1000].strip()
+        result = handle_message(bot, conversation, text)
+        send_message(bot.bale_bot_token, parsed["chat_id"], result["reply"])
         return Response({"ok": True})
 
 

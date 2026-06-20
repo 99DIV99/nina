@@ -37,6 +37,10 @@ class Bot(models.Model):
     # X-Telegram-Bot-Api-Secret-Token header so we can verify inbound updates.
     telegram_webhook_secret = models.CharField(max_length=64, default=_gen_token, db_index=True)
 
+    # --- Bale channel (Telegram-compatible API; secret carried in webhook URL) ---
+    bale_bot_token = models.CharField(max_length=128, blank=True)
+    bale_webhook_secret = models.CharField(max_length=64, default=_gen_token, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
