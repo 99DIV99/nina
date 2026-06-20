@@ -19,4 +19,9 @@ $COMPOSE run --rm web python manage.py migrate_schemas
 echo "==> collectstatic"
 $COMPOSE run --rm web python manage.py collectstatic --noinput
 
+# The running web process caches the hashed-static manifest at startup; reload it
+# so freshly collected assets (e.g. admin) are found instead of 500-ing.
+echo "==> reload web (refresh static manifest)"
+$COMPOSE restart web
+
 echo "==> release complete"
