@@ -43,6 +43,9 @@ SHARED_APPS = [
     # Django contrib needed in public schema
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    "django.contrib.admin",  # operator/system-admin console (public schema)
+    "django.contrib.sessions",  # required by admin (session auth)
+    "django.contrib.messages",  # required by admin
     "django.contrib.staticfiles",
     "django.contrib.postgres",  # ExclusionConstraint / range types (booking)
     "rest_framework",

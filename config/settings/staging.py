@@ -19,8 +19,21 @@ STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStati
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_HSTS_SECONDS = 3600
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+
+# Secure cookies by default; set DJANGO_SECURE_COOKIES=false for the HTTP-first
+# bring-up so the admin session/CSRF cookies are sent over plain HTTP.
+_secure_cookies = env.bool("DJANGO_SECURE_COOKIES", default=True)
+SESSION_COOKIE_SECURE = _secure_cookies
+CSRF_COOKIE_SECURE = _secure_cookies
+
+# Trust the apex + every tenant subdomain for admin form POSTs (CSRF origin check).
+_base = env("BASE_DOMAIN", default="yourapp.com")
+CSRF_TRUSTED_ORIGINS = [
+    f"http://{_base}",
+    f"https://{_base}",
+    f"http://*.{_base}",
+    f"https://*.{_base}",
+]
 
 _sentry_dsn = env("SENTRY_DSN", default="")
 if _sentry_dsn:

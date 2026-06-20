@@ -6,6 +6,7 @@ is active here. Onboarding (which creates tenants), the operator console, and
 platform billing webhooks live in the public schema.
 """
 
+from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
@@ -18,6 +19,7 @@ v1 = [
 ]
 
 urlpatterns = [
+    path("admin/", admin.site.urls),  # system-admin console (public schema)
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),
     path("api/v1/", include((v1, "v1_public"))),
