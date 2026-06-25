@@ -37,27 +37,35 @@ class ConsoleProvider(SmsProvider):
 
 
 class IranPayamakProvider(SmsProvider):
-    """IranPayamak / FarazSMS — Send Simple SMS (https://api.iranpayamak.com)."""
+    """IranPayamak / FarazSMS — pattern (OTP) send (https://api.iranpayamak.com).
+
+    Contract reverse-engineered from the live API (/ws/v1/sms/pattern): requires
+    `code` (the panel pattern code), `recipient`, `line_number` (validated against
+    the account), `number_format`, plus the pattern variable carrying the OTP.
+    """
 
     BASE = "https://api.iranpayamak.com"
 
     def send_otp(self, phone: str, code: str, *, timeout: int = 10) -> bool:
         api_key = getattr(settings, "IRANPAYAMAK_API_KEY", "")
+        pattern_code = getattr(settings, "IRANPAYAMAK_PATTERN_CODE", "")
         line_number = getattr(settings, "IRANPAYAMAK_LINE_NUMBER", "")
-        if not api_key or not line_number:
+        if not (api_key and pattern_code and line_number):
             logger.error("otp_iranpayamak_unconfigured")
             return False
 
-        template = getattr(settings, "OTP_SMS_TEMPLATE", "Your verification code: {code}")
+        var = getattr(settings, "IRANPAYAMAK_PATTERN_VAR", "code")  # pattern variable name
         body = {
-            "text": template.format(code=code),
+            "code": pattern_code,
+            "recipient": phone,
             "line_number": line_number,
-            "recipients": [phone],
             "number_format": "english",
-            "schedule": None,
+            # The pattern variable map carrying the OTP value (field name confirmed
+            # against the live account at rollout).
+            "input_data": [{var: code}],
         }
         req = urllib.request.Request(
-            f"{self.BASE}/ws/v1/sms/simple",
+            f"{self.BASE}/ws/v1/sms/pattern",
             data=json.dumps(body).encode("utf-8"),
             headers={
                 "Api-Key": api_key,
@@ -71,7 +79,7 @@ class IranPayamakProvider(SmsProvider):
                 payload = json.loads(resp.read().decode("utf-8") or "{}")
                 ok = 200 <= resp.status < 300 and payload.get("status") == "success"
                 if not ok:
-                    logger.error("otp_iranpayamak_rejected", extra={"method": str(payload)[:200]})
+                    logger.error("otp_iranpayamak_rejected", extra={"method": str(payload)[:300]})
                 return ok
         except Exception as exc:  # noqa: BLE001
             logger.error("otp_iranpayamak_failed", extra={"method": str(exc)[:200]})
