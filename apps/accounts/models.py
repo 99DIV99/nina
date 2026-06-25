@@ -41,10 +41,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(unique=True, db_index=True)
     full_name = models.CharField(max_length=200, blank=True)
+    phone = models.CharField(max_length=32, blank=True)  # OTP-verified at sign-up
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  # platform operator console access
     is_email_verified = models.BooleanField(default=False)
+    is_phone_verified = models.BooleanField(default=False)
 
     failed_login_attempts = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)

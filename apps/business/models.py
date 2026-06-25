@@ -27,6 +27,10 @@ class BusinessProfile(models.Model):
     max_advance_days = models.PositiveIntegerField(default=60)
     cancellation_window_hours = models.PositiveIntegerField(default=24)
 
+    # Require the customer to verify their phone (SMS OTP) before a public booking.
+    # Secure by default; a business can opt out in Settings.
+    require_phone_otp = models.BooleanField(default=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

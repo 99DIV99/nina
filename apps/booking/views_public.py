@@ -50,6 +50,7 @@ class PublicBusinessView(APIView):
                 "policies": {
                     "timezone": profile.timezone,
                     "cancellationWindowHours": profile.cancellation_window_hours,
+                    "requirePhoneOtp": profile.require_phone_otp,
                 },
             }
         )
@@ -99,6 +100,7 @@ class GuestBookingSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    otp_token = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class PublicBookingCreateView(APIView):
@@ -110,6 +112,19 @@ class PublicBookingCreateView(APIView):
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
         profile = BusinessProfile.get_solo()
+
+        # Phone verification gate (secure by default; business can opt out).
+        if profile.require_phone_otp:
+            from apps.otp.services import check_verification_token
+
+            phone = data.get("phone", "")
+            if not phone or not check_verification_token(
+                data.get("otp_token", ""), phone, "booking"
+            ):
+                return Response(
+                    {"error": {"code": "phone_unverified", "message": "Verify your phone first."}},
+                    status=400,
+                )
 
         customer = None
         if data.get("email"):

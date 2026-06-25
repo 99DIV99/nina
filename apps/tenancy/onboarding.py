@@ -28,6 +28,7 @@ def onboard(
     business_name: str,
     subdomain: str,
     business_type: str = BusinessType.GENERAL,
+    phone: str = "",
 ) -> dict:
     """Create owner account + tenant + seed. Returns a summary with the live link."""
     email = email.strip().lower()
@@ -36,7 +37,13 @@ def onboard(
 
     business = create_business(name=business_name, subdomain=subdomain, business_type=business_type)
 
-    owner = User.objects.create_user(email=email, password=password, full_name=full_name)
+    owner = User.objects.create_user(
+        email=email,
+        password=password,
+        full_name=full_name,
+        phone=phone,
+        is_phone_verified=bool(phone),
+    )
     Membership.objects.create(user=owner, business=business, role=Role.OWNER, is_active=True)
 
     _seed_tenant(business, owner_full_name=full_name)

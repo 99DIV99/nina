@@ -31,6 +31,8 @@ class SignupSerializer(serializers.Serializer):
     business_type = serializers.ChoiceField(
         choices=BusinessType.choices, default=BusinessType.GENERAL
     )
+    phone = serializers.CharField(max_length=32)
+    otp_token = serializers.CharField()
 
 
 class SignupView(APIView):
@@ -39,10 +41,21 @@ class SignupView(APIView):
     throttle_scope = "auth"
 
     def post(self, request):
+        from apps.otp.services import check_verification_token
+
         serializer = SignupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        otp_token = data.pop("otp_token")
+
+        # Owner phone is always OTP-verified at sign-up (anti-fraud gate).
+        if not check_verification_token(otp_token, data["phone"], "signup"):
+            return Response(
+                {"error": {"code": "phone_unverified", "message": "Verify your phone first."}},
+                status=400,
+            )
         try:
-            result = onboard(**serializer.validated_data)
+            result = onboard(**data)
         except DomainError as exc:
             return Response(
                 {"error": {"code": exc.code, "message": exc.message}},

@@ -16,6 +16,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "booking_lead_minutes",
             "max_advance_days",
             "cancellation_window_hours",
+            "require_phone_otp",
             "updated_at",
         )
         read_only_fields = ("updated_at",)
