@@ -108,6 +108,18 @@ services:
     depends_on:
       - web
 
+  # Web DB admin (Adminer). Bound to localhost only; the host nginx fronts it at
+  # db.<domain> behind HTTP Basic Auth. ADMINER_DEFAULT_SERVER pre-fills the db host.
+  adminer:
+    image: adminer:4
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - db
+
 volumes:
   pgdata:
   redisdata:
