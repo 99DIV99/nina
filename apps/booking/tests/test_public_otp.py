@@ -15,7 +15,13 @@ WHEN = "2026-07-06T10:00:00Z"  # a Monday 10:00, inside default hours
 
 
 def _book(client, sid, stid, **extra):
-    body = {"service": sid, "staff": stid, "start_at": WHEN, "name": "Guest", "phone": "09120000000"}
+    body = {
+        "service": sid,
+        "staff": stid,
+        "start_at": WHEN,
+        "name": "Guest",
+        "phone": "09120000000",
+    }
     body.update(extra)
     return client.post("/api/v1/public/book", body, HTTP_HOST="book.localhost", format="json")
 
