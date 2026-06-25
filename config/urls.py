@@ -13,6 +13,7 @@ from apps.common.health import healthz, readyz
 
 v1 = [
     path("auth/", include("apps.accounts.urls")),
+    path("otp/", include("apps.otp.urls")),  # customer-booking phone verification
     path("context/", include("apps.business.urls_context")),
     path("booking/", include("apps.booking.urls")),
     path("public/", include("apps.booking.urls_public")),

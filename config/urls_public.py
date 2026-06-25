@@ -15,6 +15,7 @@ from apps.common.health import healthz, readyz
 v1 = [
     path("onboarding/", include("apps.tenancy.urls_onboarding")),
     path("auth/", include("apps.accounts.urls")),
+    path("otp/", include("apps.otp.urls")),  # owner-signup phone verification
     path("operator/", include("apps.tenancy.urls_operator")),
 ]
 

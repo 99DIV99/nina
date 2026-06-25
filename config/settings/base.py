@@ -52,6 +52,7 @@ SHARED_APPS = [
     "drf_spectacular",
     "corsheaders",
     "django_celery_beat",
+    "apps.otp",  # SMS OTP — public schema serves owner-signup verification
 ]
 
 TENANT_APPS = [
@@ -64,6 +65,7 @@ TENANT_APPS = [
     "apps.accounting",  # flag-gated bookkeeping
     "apps.bots",  # per-tenant booking bots
     "apps.audit",  # audit log (per tenant)
+    "apps.otp",  # SMS OTP — tenant schema serves customer-booking verification
 ]
 
 # INSTALLED_APPS = union, preserving order, no duplicates.
@@ -251,6 +253,13 @@ RESERVED_SUBDOMAINS = {
 # Email
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@yourapp.com")
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+
+# SMS / OTP. Default "console" logs the code (works with no credentials); set
+# SMS_PROVIDER=iranpayamak + the API key/line to deliver real SMS.
+SMS_PROVIDER = env("SMS_PROVIDER", default="console")
+IRANPAYAMAK_API_KEY = env("IRANPAYAMAK_API_KEY", default="")
+IRANPAYAMAK_LINE_NUMBER = env("IRANPAYAMAK_LINE_NUMBER", default="")
+OTP_SMS_TEMPLATE = env("OTP_SMS_TEMPLATE", default="Your verification code: {code}")
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^https?://([a-z0-9-]+\.)?localhost(:\d+)?$"]
