@@ -33,6 +33,13 @@ ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 # The apex domain used to derive subdomains, e.g. acme.yourapp.com -> "acme".
 BASE_DOMAIN = env("BASE_DOMAIN", default="localhost")
 
+# Hosts that serve the unified business dashboard (the panel for every business).
+# On these hosts there is no tenant in the hostname, so the active business is
+# resolved from the authenticated JWT's `biz` claim — see
+# apps.tenancy.middleware.TenantMainMiddleware. Booking subdomains + the apex keep
+# host-based resolution.
+NINA_DASHBOARD_HOSTS = env.list("NINA_DASHBOARD_HOSTS", default=["dash.localhost"])
+
 # ---------------------------------------------------------------------------
 # Applications: SHARED (public schema) vs TENANT (per-schema)
 # ---------------------------------------------------------------------------
@@ -81,7 +88,7 @@ AUTH_USER_MODEL = "accounts.User"
 # Middleware: TenantMainMiddleware FIRST.
 # ---------------------------------------------------------------------------
 MIDDLEWARE = [
-    "django_tenants.middleware.main.TenantMainMiddleware",
+    "apps.tenancy.middleware.TenantMainMiddleware",  # host- OR token-based tenant resolution
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
