@@ -45,16 +45,28 @@ class TenantMainMiddleware(_BaseTenantMiddleware):
             return super().process_request(request)
 
         # Dashboard host: the tenant comes from the user (via floor 0), not the host.
+        # The connection is already defaulted to public above; if a business
+        # resolves we switch to its floor, otherwise we simply stay on public.
         connection.set_schema_to_public()
         business = self._business_for_user(request) or self._public_tenant()
-        business.domain_url = hostname
-        request.tenant = business
-        connection.set_tenant(business)
-        self.setup_url_routing(request)
+        if business is not None:
+            business.domain_url = hostname
+            request.tenant = business
+            connection.set_tenant(business)
+            self.setup_url_routing(request)
+        else:
+            # No business resolved (token-less login/signup/refresh, or no
+            # public-tenant row): stay on the default public schema with the
+            # public urlconf. Mirrors django-tenants' show-public path and needs
+            # no public-tenant row to exist.
+            request.tenant = None
+            self.setup_url_routing(request, force_public=True)
 
     @staticmethod
     def _public_tenant():
-        return get_tenant_model().objects.get(schema_name=get_public_schema_name())
+        # `.first()` (not `.get()`): the public-tenant row exists in prod via
+        # bootstrap_public, but may be absent in minimal/test setups — don't 500.
+        return get_tenant_model().objects.filter(schema_name=get_public_schema_name()).first()
 
     @staticmethod
     def _business_for_user(request):
