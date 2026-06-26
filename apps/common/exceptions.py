@@ -11,15 +11,28 @@ def exception_handler(exc, context):
 
     detail = response.data
     code = getattr(exc, "default_code", "error")
+
+    def first_message(node) -> str:
+        """Pull the most useful human-readable message out of a DRF error detail."""
+        if isinstance(node, str):
+            return node
+        if isinstance(node, list):
+            return first_message(node[0]) if node else "Request failed."
+        if isinstance(node, dict):
+            if "detail" in node:
+                return str(node["detail"])
+            for value in node.values():  # first field's first error
+                return first_message(value)
+        return "Request failed."
+
     if isinstance(detail, dict) and "detail" in detail and len(detail) == 1:
         message = str(detail["detail"])
         details = None
-    elif isinstance(detail, list | str):
-        message = "Request failed."
-        details = detail
     else:
-        message = "Validation failed."
-        details = detail
+        # Surface the specific reason (e.g. "Invalid credentials.") instead of a
+        # generic "Validation failed."; keep the full structure under `details`.
+        message = first_message(detail)
+        details = detail if isinstance(detail, dict) else None
 
     response.data = {"error": {"code": code, "message": message, "details": details}}
     return response
