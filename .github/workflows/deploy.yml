@@ -32,5 +32,5 @@ jobs:
             CO="docker compose -f docker-compose.prod.yml --env-file .env.prod"
             # Rebuild/refresh only the backend-owned services + datastores.
             $CO up -d --build db redis web worker beat
-            bash deploy/release.sh
+            APEX_HOSTS="ninax.net www.ninax.net" bash deploy/release.sh
             docker image prune -f
