@@ -108,15 +108,27 @@ services:
     depends_on:
       - web
 
-  # Web DB admin (Adminer). Bound to localhost only; the host nginx fronts it at
-  # db.<domain> behind HTTP Basic Auth. ADMINER_DEFAULT_SERVER pre-fills the db host.
-  adminer:
-    image: adminer:4
+  # Web DB admin (pgAdmin). Localhost-bound; host nginx fronts it at db.<domain>
+  # over HTTPS. Configured to trust the reverse proxy; the NINA db server is
+  # pre-registered (no stored password — you enter the DB password on connect).
+  pgadmin:
+    image: dpage/pgadmin4:8
     restart: unless-stopped
+    env_file: .env.prod
     environment:
-      ADMINER_DEFAULT_SERVER: db
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_DISABLE_POSTFIX: "True"
+      PGADMIN_CONFIG_PROXY_X_FOR_COUNT: "1"
+      PGADMIN_CONFIG_PROXY_X_PROTO_COUNT: "1"
+      PGADMIN_CONFIG_PROXY_X_HOST_COUNT: "1"
+      PGADMIN_CONFIG_PROXY_X_PORT_COUNT: "1"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+      - ./deploy/pgadmin-servers.json:/pgadmin4/servers.json:ro
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8080:80"
     depends_on:
       - db
 
@@ -125,3 +137,4 @@ volumes:
   redisdata:
   staticfiles:
   media:
+  pgadmin:
