@@ -6,7 +6,8 @@ from django.conf import settings
 
 from apps.common.exceptions import DomainError
 
-_SUBDOMAIN_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$")
+MAX_SUBDOMAIN_LEN = 16
+_SUBDOMAIN_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,14}[a-z0-9])?$")
 
 
 def normalize_subdomain(raw: str) -> str:
@@ -18,10 +19,15 @@ def validate_subdomain(raw: str) -> str:
     sub = normalize_subdomain(raw)
     if not sub:
         raise DomainError("Subdomain is required.", code="subdomain_required")
+    if len(sub) > MAX_SUBDOMAIN_LEN:
+        raise DomainError(
+            f"Subdomain must be at most {MAX_SUBDOMAIN_LEN} characters.",
+            code="subdomain_too_long",
+        )
     if not _SUBDOMAIN_RE.match(sub):
         raise DomainError(
-            "Subdomain must be 2-63 chars, lowercase letters, digits or hyphens, "
-            "not starting/ending with a hyphen.",
+            f"Subdomain must be 2-{MAX_SUBDOMAIN_LEN} chars, lowercase letters, digits "
+            "or hyphens, not starting/ending with a hyphen.",
             code="subdomain_invalid",
         )
     if "--" in sub:

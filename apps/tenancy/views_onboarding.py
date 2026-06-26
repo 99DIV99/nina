@@ -27,7 +27,7 @@ class SignupSerializer(serializers.Serializer):
     password = serializers.CharField(min_length=8, write_only=True)
     full_name = serializers.CharField(max_length=200)
     business_name = serializers.CharField(max_length=200)
-    subdomain = serializers.CharField(max_length=63)
+    subdomain = serializers.CharField(max_length=16)
     business_type = serializers.ChoiceField(
         choices=BusinessType.choices, default=BusinessType.GENERAL
     )
