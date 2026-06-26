@@ -56,6 +56,7 @@ SHARED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",  # ExclusionConstraint / range types (booking)
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",  # audit/revoke issued refresh tokens
     "drf_spectacular",
     "corsheaders",
     "django_celery_beat",

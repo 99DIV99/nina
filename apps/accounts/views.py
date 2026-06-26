@@ -1,3 +1,4 @@
+from django_tenants.utils import get_public_schema_name, schema_context
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -11,8 +12,13 @@ from apps.accounts.services import register_successful_login
 
 
 def _tokens_for(user) -> dict:
-    refresh = RefreshToken.for_user(user)
-    return {"access": str(refresh.access_token), "refresh": str(refresh)}
+    # Issuing a refresh token records an OutstandingToken (jti, created/expiry) so
+    # tokens can be audited and revoked. That bookkeeping is shared/public data, so
+    # mint in the public schema regardless of which host the login arrived on — a
+    # tenant schema has no token_blacklist table.
+    with schema_context(get_public_schema_name()):
+        refresh = RefreshToken.for_user(user)
+        return {"access": str(refresh.access_token), "refresh": str(refresh)}
 
 
 class LoginView(APIView):
