@@ -260,7 +260,10 @@ SMS_PROVIDER = env("SMS_PROVIDER", default="console")
 IRANPAYAMAK_API_KEY = env("IRANPAYAMAK_API_KEY", default="")
 IRANPAYAMAK_LINE_NUMBER = env("IRANPAYAMAK_LINE_NUMBER", default="")  # a service (خدماتی) line
 IRANPAYAMAK_PATTERN_CODE = env("IRANPAYAMAK_PATTERN_CODE", default="")  # OTP pattern code
-IRANPAYAMAK_PATTERN_VAR = env("IRANPAYAMAK_PATTERN_VAR", default="code")  # pattern variable name
+# Pattern variable names — must match the %placeholders% you defined in the panel.
+IRANPAYAMAK_VAR_CODE = env("IRANPAYAMAK_VAR_CODE", default="code")
+IRANPAYAMAK_VAR_BUSINESS = env("IRANPAYAMAK_VAR_BUSINESS", default="business")
+IRANPAYAMAK_VAR_ACTION = env("IRANPAYAMAK_VAR_ACTION", default="action")
 OTP_SMS_TEMPLATE = env("OTP_SMS_TEMPLATE", default="Your verification code: {code}")
 
 CORS_ALLOW_CREDENTIALS = True

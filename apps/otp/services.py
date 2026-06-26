@@ -42,8 +42,9 @@ def _generate_code() -> str:
     return "".join(str(secrets.randbelow(10)) for _ in range(CODE_LENGTH))
 
 
-def request_otp(raw_phone: str, purpose: str) -> dict:
-    """Create + send an OTP, enforcing cooldown and hourly cap. Raises DomainError."""
+def request_otp(raw_phone: str, purpose: str, *, business: str = "", action: str = "") -> dict:
+    """Create + send an OTP, enforcing cooldown and hourly cap. `business`/`action`
+    enrich the SMS pattern (who is asking / why). Raises DomainError."""
     phone = normalize_phone(raw_phone)
     if len(phone) < 7:
         raise DomainError("Enter a valid phone number.", code="invalid_phone")
@@ -68,7 +69,7 @@ def request_otp(raw_phone: str, purpose: str) -> dict:
     otp.set_code(code)
     otp.save()
 
-    if not get_provider().send_otp(phone, code):
+    if not get_provider().send_otp(phone, code, business=business, action=action):
         raise DomainError(
             "Could not send the code. Try again.", code="otp_send_failed", status_code=502
         )

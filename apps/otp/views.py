@@ -21,6 +21,24 @@ class _VerifySerializer(_RequestSerializer):
     code = serializers.CharField(max_length=12)
 
 
+_ACTION = {OtpPurpose.BOOKING: "رزرو نوبت", OtpPurpose.SIGNUP: "ثبت‌نام"}
+PLATFORM_NAME = "نینا"
+
+
+def _sms_context(request, purpose: str) -> tuple[str, str]:
+    """(business, action) for the SMS pattern. For bookings the business is the
+    tenant; for sign-up there's no business yet, so we use the platform name."""
+    action = _ACTION.get(purpose, "")
+    business = PLATFORM_NAME
+    if purpose == OtpPurpose.BOOKING:
+        # Tenant schema is active here, so the business_profile table exists.
+        from apps.business.models import BusinessProfile
+
+        profile = BusinessProfile.get_solo()
+        business = profile.display_name or getattr(request.tenant, "name", "") or PLATFORM_NAME
+    return business, action
+
+
 class RequestOtpView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -29,8 +47,12 @@ class RequestOtpView(APIView):
     def post(self, request):
         ser = _RequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        purpose = ser.validated_data["purpose"]
+        business, action = _sms_context(request, purpose)
         try:
-            result = request_otp(ser.validated_data["phone"], ser.validated_data["purpose"])
+            result = request_otp(
+                ser.validated_data["phone"], purpose, business=business, action=action
+            )
         except DomainError as exc:
             return Response(
                 {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code

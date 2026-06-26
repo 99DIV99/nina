@@ -22,17 +22,18 @@ logger = logging.getLogger("nina.otp")
 
 class SmsProvider(ABC):
     @abstractmethod
-    def send_otp(self, phone: str, code: str) -> bool:
-        """Deliver the OTP `code` to `phone`. Return True on accepted-for-delivery."""
+    def send_otp(self, phone: str, code: str, *, business: str = "", action: str = "") -> bool:
+        """Deliver the OTP `code` to `phone`. `business` (who) and `action` (why)
+        are pattern variables for a richer, trustworthy message. True on accepted."""
 
 
 class ConsoleProvider(SmsProvider):
     """No-op sender: records the code so the flow is testable without a gateway."""
 
-    def send_otp(self, phone: str, code: str) -> bool:
+    def send_otp(self, phone: str, code: str, *, business: str = "", action: str = "") -> bool:
         logger.info("otp_console", extra={"target": phone, "code": code})
         # Visible in container logs during the HTTP-first bring-up.
-        print(f"[OTP] {phone} -> {code}")  # noqa: T201
+        print(f"[OTP] {phone} ({action} @ {business}) -> {code}")  # noqa: T201
         return True
 
 
@@ -46,7 +47,9 @@ class IranPayamakProvider(SmsProvider):
 
     BASE = "https://api.iranpayamak.com"
 
-    def send_otp(self, phone: str, code: str, *, timeout: int = 10) -> bool:
+    def send_otp(
+        self, phone: str, code: str, *, business: str = "", action: str = "", timeout: int = 10
+    ) -> bool:
         api_key = getattr(settings, "IRANPAYAMAK_API_KEY", "")
         pattern_code = getattr(settings, "IRANPAYAMAK_PATTERN_CODE", "")
         line_number = getattr(settings, "IRANPAYAMAK_LINE_NUMBER", "")
@@ -54,15 +57,18 @@ class IranPayamakProvider(SmsProvider):
             logger.error("otp_iranpayamak_unconfigured")
             return False
 
-        var = getattr(settings, "IRANPAYAMAK_PATTERN_VAR", "code")  # pattern variable name
+        # Pattern variable names (match what you defined in the IranPayamak panel).
+        variables = {getattr(settings, "IRANPAYAMAK_VAR_CODE", "code"): code}
+        if business:
+            variables[getattr(settings, "IRANPAYAMAK_VAR_BUSINESS", "business")] = business
+        if action:
+            variables[getattr(settings, "IRANPAYAMAK_VAR_ACTION", "action")] = action
         body = {
             "code": pattern_code,
             "recipient": phone,
             "line_number": line_number,
             "number_format": "english",
-            # The pattern variable map carrying the OTP value (field name confirmed
-            # against the live account at rollout).
-            "input_data": [{var: code}],
+            "input_data": [variables],  # exact shape confirmed by a live test at rollout
         }
         req = urllib.request.Request(
             f"{self.BASE}/ws/v1/sms/pattern",
