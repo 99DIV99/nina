@@ -40,7 +40,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     never tenant roles."""
 
     email = models.EmailField(unique=True, db_index=True)
-    full_name = models.CharField(max_length=200, blank=True)
+    full_name = models.CharField(max_length=200, blank=True)  # derived from first+last
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=32, blank=True)  # OTP-verified at sign-up
 
     is_active = models.BooleanField(default=True)

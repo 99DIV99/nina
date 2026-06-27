@@ -118,9 +118,12 @@ def test_signup_with_registered_phone_logs_in():
         {
             "email": "different@x.io",  # ignored — phone wins
             "password": "pw-123456",
-            "full_name": "Someone",
+            "first_name": "Some",
+            "last_name": "One",
             "business_name": "Another Biz",
             "subdomain": "anotherbiz",
+            "latitude": "35.7219",
+            "longitude": "51.3347",
             "phone": "09120000003",
             "otp_token": token,
         },
@@ -142,9 +145,12 @@ def test_signup_new_phone_creates_account_and_logs_in():
         {
             "email": "new@x.io",
             "password": "pw-123456",
-            "full_name": "New Owner",
+            "first_name": "New",
+            "last_name": "Owner",
             "business_name": "Brand New",
             "subdomain": "brandnew",
+            "latitude": "35.7219",
+            "longitude": "51.3347",
             "phone": "09120000004",
             "otp_token": token,
         },
@@ -154,7 +160,9 @@ def test_signup_new_phone_creates_account_and_logs_in():
         assert resp.status_code == 201
         body = resp.json()
         assert "access" in body and body.get("schema") == "brandnew"
-        assert User.objects.filter(phone="09120000004", email="new@x.io").exists()
+        owner = User.objects.get(phone="09120000004", email="new@x.io")
+        assert owner.first_name == "New" and owner.last_name == "Owner"
+        assert owner.full_name == "New Owner"  # derived from first+last
     finally:
         from django.db import connection
 

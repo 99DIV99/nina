@@ -25,12 +25,18 @@ class SubdomainCheckView(APIView):
 class SignupSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(min_length=8, write_only=True)
-    full_name = serializers.CharField(max_length=200)
+    first_name = serializers.CharField(max_length=100)
+    last_name = serializers.CharField(max_length=100)
+    # Derived server-side from first+last; accepted but optional for back-compat.
+    full_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     business_name = serializers.CharField(max_length=200)
     subdomain = serializers.CharField(max_length=16)
     business_type = serializers.ChoiceField(
         choices=BusinessType.choices, default=BusinessType.GENERAL
     )
+    # Business location (required).
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+    longitude = serializers.DecimalField(max_digits=10, decimal_places=6)
     phone = serializers.CharField(max_length=32)
     otp_token = serializers.CharField()
 

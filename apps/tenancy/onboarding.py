@@ -24,29 +24,36 @@ def onboard(
     *,
     email: str,
     password: str,
-    full_name: str,
     business_name: str,
     subdomain: str,
     business_type: str = BusinessType.GENERAL,
     phone: str = "",
+    first_name: str = "",
+    last_name: str = "",
+    full_name: str = "",
+    latitude=None,
+    longitude=None,
 ) -> dict:
     """Create owner account + tenant + seed. Returns a summary with the live link."""
     email = email.strip().lower()
     if User.objects.filter(email=email).exists():
         raise DomainError("An account with that email already exists.", code="email_taken")
 
+    full_name = full_name or f"{first_name} {last_name}".strip()
     business = create_business(name=business_name, subdomain=subdomain, business_type=business_type)
 
     owner = User.objects.create_user(
         email=email,
         password=password,
         full_name=full_name,
+        first_name=first_name,
+        last_name=last_name,
         phone=phone,
         is_phone_verified=bool(phone),
     )
     Membership.objects.create(user=owner, business=business, role=Role.OWNER, is_active=True)
 
-    _seed_tenant(business, owner_full_name=full_name)
+    _seed_tenant(business, owner_full_name=full_name, latitude=latitude, longitude=longitude)
 
     primary = business.domains.filter(is_primary=True).first()
     live_url = f"https://{primary.domain}" if primary else None
@@ -60,7 +67,9 @@ def onboard(
     }
 
 
-def _seed_tenant(business: Business, *, owner_full_name: str) -> None:
+def _seed_tenant(
+    business: Business, *, owner_full_name: str, latitude=None, longitude=None
+) -> None:
     """Seed the tenant schema with a profile, one staff member, a service, and hours."""
     from apps.booking.models import BusinessHours, Service, StaffMember
     from apps.business.models import DEFAULT_VOCABULARY, BusinessProfile
@@ -71,6 +80,8 @@ def _seed_tenant(business: Business, *, owner_full_name: str) -> None:
         profile.vocabulary = DEFAULT_VOCABULARY.get(
             business.experience, DEFAULT_VOCABULARY["general"]
         )
+        profile.latitude = latitude
+        profile.longitude = longitude
         profile.save()
 
         staff = StaffMember.objects.create(name=owner_full_name or "Owner", is_active=True)

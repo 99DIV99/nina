@@ -31,6 +31,11 @@ class BusinessProfile(models.Model):
     # Secure by default; a business can opt out in Settings.
     require_phone_otp = models.BooleanField(default=True)
 
+    # Geographic location (so customers can find the business on a map). Required
+    # at sign-up via the API; nullable at the DB so pre-existing rows stay valid.
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
