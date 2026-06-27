@@ -267,11 +267,18 @@ EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.
 SMS_PROVIDER = env("SMS_PROVIDER", default="console")
 IRANPAYAMAK_API_KEY = env("IRANPAYAMAK_API_KEY", default="")
 IRANPAYAMAK_LINE_NUMBER = env("IRANPAYAMAK_LINE_NUMBER", default="")  # a service (خدماتی) line
-IRANPAYAMAK_PATTERN_CODE = env("IRANPAYAMAK_PATTERN_CODE", default="")  # OTP pattern code
+# One pattern per purpose — the wording differs, so each is its own approved
+# template. Booking uses %business_name% + %code%; signup uses %code% only.
+# Falls back to the generic IRANPAYAMAK_PATTERN_CODE when a per-purpose one is unset.
+IRANPAYAMAK_PATTERN_CODE = env("IRANPAYAMAK_PATTERN_CODE", default="")
+IRANPAYAMAK_PATTERN_BOOKING = env("IRANPAYAMAK_PATTERN_BOOKING", default="")
+IRANPAYAMAK_PATTERN_SIGNUP = env("IRANPAYAMAK_PATTERN_SIGNUP", default="")
 # Pattern variable names — must match the %placeholders% you defined in the panel.
 IRANPAYAMAK_VAR_CODE = env("IRANPAYAMAK_VAR_CODE", default="code")
-IRANPAYAMAK_VAR_BUSINESS = env("IRANPAYAMAK_VAR_BUSINESS", default="business")
-IRANPAYAMAK_VAR_ACTION = env("IRANPAYAMAK_VAR_ACTION", default="action")
+IRANPAYAMAK_VAR_BUSINESS = env("IRANPAYAMAK_VAR_BUSINESS", default="business_name")
+# Business name is truncated to this many chars so a long name can't break delivery
+# (must not exceed the pattern variable's length limit registered in the panel).
+IRANPAYAMAK_BUSINESS_MAX_LEN = env.int("IRANPAYAMAK_BUSINESS_MAX_LEN", default=40)
 OTP_SMS_TEMPLATE = env("OTP_SMS_TEMPLATE", default="Your verification code: {code}")
 
 CORS_ALLOW_CREDENTIALS = True

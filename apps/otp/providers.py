@@ -22,18 +22,19 @@ logger = logging.getLogger("nina.otp")
 
 class SmsProvider(ABC):
     @abstractmethod
-    def send_otp(self, phone: str, code: str, *, business: str = "", action: str = "") -> bool:
-        """Deliver the OTP `code` to `phone`. `business` (who) and `action` (why)
-        are pattern variables for a richer, trustworthy message. True on accepted."""
+    def send_otp(self, phone: str, code: str, *, purpose: str = "", business: str = "") -> bool:
+        """Deliver the OTP `code` to `phone`. `purpose` (booking/signup) selects the
+        message pattern; `business` is the booking pattern's name variable. True on
+        accepted."""
 
 
 class ConsoleProvider(SmsProvider):
     """No-op sender: records the code so the flow is testable without a gateway."""
 
-    def send_otp(self, phone: str, code: str, *, business: str = "", action: str = "") -> bool:
+    def send_otp(self, phone: str, code: str, *, purpose: str = "", business: str = "") -> bool:
         logger.info("otp_console", extra={"target": phone, "code": code})
         # Visible in container logs during the HTTP-first bring-up.
-        print(f"[OTP] {phone} ({action} @ {business}) -> {code}")  # noqa: T201
+        print(f"[OTP] {phone} ({purpose} @ {business}) -> {code}")  # noqa: T201
         return True
 
 
@@ -47,22 +48,33 @@ class IranPayamakProvider(SmsProvider):
 
     BASE = "https://api.iranpayamak.com"
 
+    @staticmethod
+    def _pattern_for(purpose: str) -> str:
+        """The approved pattern code for this OTP purpose (booking vs signup),
+        falling back to the generic pattern when a per-purpose one isn't set."""
+        per_purpose = {
+            "booking": getattr(settings, "IRANPAYAMAK_PATTERN_BOOKING", ""),
+            "signup": getattr(settings, "IRANPAYAMAK_PATTERN_SIGNUP", ""),
+        }
+        return per_purpose.get(purpose) or getattr(settings, "IRANPAYAMAK_PATTERN_CODE", "")
+
     def send_otp(
-        self, phone: str, code: str, *, business: str = "", action: str = "", timeout: int = 10
+        self, phone: str, code: str, *, purpose: str = "", business: str = "", timeout: int = 10
     ) -> bool:
         api_key = getattr(settings, "IRANPAYAMAK_API_KEY", "")
-        pattern_code = getattr(settings, "IRANPAYAMAK_PATTERN_CODE", "")
+        pattern_code = self._pattern_for(purpose)
         line_number = getattr(settings, "IRANPAYAMAK_LINE_NUMBER", "")
         if not (api_key and pattern_code and line_number):
             logger.error("otp_iranpayamak_unconfigured")
             return False
 
-        # Pattern variable names (match what you defined in the IranPayamak panel).
+        # Pattern variables — names must match the %placeholders% in the panel.
+        # Booking carries %business_name% + %code%; signup is %code% only.
         variables = {getattr(settings, "IRANPAYAMAK_VAR_CODE", "code"): code}
         if business:
-            variables[getattr(settings, "IRANPAYAMAK_VAR_BUSINESS", "business")] = business
-        if action:
-            variables[getattr(settings, "IRANPAYAMAK_VAR_ACTION", "action")] = action
+            max_len = getattr(settings, "IRANPAYAMAK_BUSINESS_MAX_LEN", 40)
+            var = getattr(settings, "IRANPAYAMAK_VAR_BUSINESS", "business_name")
+            variables[var] = business[:max_len]
         body = {
             "code": pattern_code,
             "recipient": phone,
