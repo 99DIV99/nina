@@ -81,7 +81,10 @@ class IranPayamakProvider(SmsProvider):
             "recipient": phone,
             "line_number": line_number,
             "number_format": "english",
-            "input_data": [variables],  # exact shape confirmed by a live test at rollout
+            # Pattern variables go in a single top-level "attributes" object
+            # (confirmed live: a flat list under "input_data" 500s with
+            # 'Undefined array key "attributes"').
+            "attributes": variables,
         }
         req = urllib.request.Request(
             f"{self.BASE}/ws/v1/sms/pattern",

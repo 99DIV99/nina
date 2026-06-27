@@ -133,7 +133,7 @@ def test_booking_sends_truncated_business_name(monkeypatch):
     assert ok
     body = captured["body"]
     assert body["code"] == "bookpat"
-    variables = body["input_data"][0]
+    variables = body["attributes"]
     assert variables["code"] == "123456"
     assert variables["business_name"] == "VeryL"  # truncated to 5 chars
 
@@ -149,4 +149,4 @@ def test_signup_sends_code_only(monkeypatch):
     assert ok
     body = captured["body"]
     assert body["code"] == "signpat"
-    assert body["input_data"][0] == {"code": "123456"}  # no business_name variable
+    assert body["attributes"] == {"code": "123456"}  # no business_name variable
