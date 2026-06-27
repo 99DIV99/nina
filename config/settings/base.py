@@ -171,9 +171,12 @@ STORAGES = {
 # DRF + JWT
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
+    # JWT only — no SessionAuthentication. The JSON API authenticates by Bearer
+    # token, so CSRF is moot; including SessionAuthentication would make DRF
+    # enforce CSRF on every browser call (even public ones like OTP) whenever a
+    # Django admin session cookie happens to be present -> spurious 403s.
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "apps.common.pagination.DefaultPagination",
