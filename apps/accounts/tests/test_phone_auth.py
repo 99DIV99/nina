@@ -159,4 +159,6 @@ def test_signup_new_phone_creates_account_and_logs_in():
         from django.db import connection
 
         connection.set_schema_to_public()
-        Business.objects.filter(schema_name="brandnew").delete(force_drop=True)
+        biz = Business.objects.filter(schema_name="brandnew").first()
+        if biz is not None:
+            biz.delete(force_drop=True)  # instance delete drops the schema
