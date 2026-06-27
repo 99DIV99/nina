@@ -14,6 +14,7 @@ from django.utils import timezone
 class OtpPurpose(models.TextChoices):
     SIGNUP = "signup", "Owner sign-up"
     BOOKING = "booking", "Customer booking"
+    LOGIN = "login", "Owner passwordless login"
 
 
 class OtpCode(models.Model):

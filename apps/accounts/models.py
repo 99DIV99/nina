@@ -60,6 +60,15 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = "accounts_user"
+        constraints = [
+            # One phone == one account == one business. Unique only when set, so
+            # phone-less accounts (platform operators/superusers) are unaffected.
+            models.UniqueConstraint(
+                fields=["phone"],
+                condition=models.Q(phone__gt=""),
+                name="uniq_user_phone_when_set",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.email

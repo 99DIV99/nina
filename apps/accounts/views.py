@@ -1,4 +1,3 @@
-from django_tenants.utils import get_public_schema_name, schema_context
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -7,23 +6,18 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.authorization import current_business, current_membership
+from apps.accounts.models import User
 from apps.accounts.serializers import LoginSerializer, MeSerializer
-from apps.accounts.services import register_successful_login
+from apps.accounts.services import register_successful_login, tokens_for_user
+from apps.common.exceptions import DomainError
+from apps.otp.models import OtpPurpose
+from apps.otp.services import normalize_phone, request_otp, verify_otp
 
 
-def _tokens_for(user) -> dict:
-    # Issuing a refresh token records an OutstandingToken (jti, created/expiry) so
-    # tokens can be audited and revoked. That bookkeeping is shared/public data, so
-    # mint in the public schema regardless of which host the login arrived on — a
-    # tenant schema has no token_blacklist table.
-    with schema_context(get_public_schema_name()):
-        refresh = RefreshToken.for_user(user)
-        return {"access": str(refresh.access_token), "refresh": str(refresh)}
-
-
-class LoginView(APIView):
-    """Issue JWTs. If on a tenant host, require membership in that tenant so a
-    token is only minted for someone who actually belongs there."""
+class PasswordLoginView(APIView):
+    """Password login (the secondary method): email + password -> JWTs. On a tenant
+    host, require membership in that tenant so a token is only minted for someone who
+    actually belongs there. The primary method is OtpLoginRequest/Verify below."""
 
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -49,7 +43,7 @@ class LoginView(APIView):
                 )
 
         register_successful_login(user)
-        return Response(_tokens_for(user))
+        return Response(tokens_for_user(user))
 
 
 class RefreshView(APIView):
@@ -96,3 +90,60 @@ class MeView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         return Response(MeSerializer({"user": request.user}, context={"request": request}).data)
+
+
+class OtpLoginRequestView(APIView):
+    """OTP login (the PRIMARY, passwordless method) — step 1. Sends a login OTP when
+    the phone has an account; otherwise tells the client to sign up. No SMS is spent
+    on unknown numbers, and existence is only revealed at this deliberate entry."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        phone = normalize_phone(request.data.get("phone", ""))
+        if len(phone) < 7:
+            return Response(
+                {"error": {"code": "invalid_phone", "message": "Enter a valid phone number."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not User.objects.filter(phone=phone, is_active=True).exists():
+            return Response({"sent": False, "needs_signup": True})
+        try:
+            result = request_otp(phone, OtpPurpose.LOGIN)
+        except DomainError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
+        return Response({"sent": True, **result})
+
+
+class OtpLoginVerifyView(APIView):
+    """OTP login — step 2: verify the code, then issue tokens. The token is vanilla;
+    the dashboard host resolves the business from the user."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        phone = normalize_phone(request.data.get("phone", ""))
+        code = str(request.data.get("code", "")).strip()
+        try:
+            verify_otp(phone, OtpPurpose.LOGIN, code)
+        except DomainError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
+        user = User.objects.filter(phone=phone, is_active=True).first()
+        if user is None:
+            return Response(
+                {
+                    "error": {"code": "no_account", "message": "No account for this number."},
+                    "needs_signup": True,
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        register_successful_login(user)
+        return Response(tokens_for_user(user))

@@ -55,6 +55,7 @@ class IranPayamakProvider(SmsProvider):
         per_purpose = {
             "booking": getattr(settings, "IRANPAYAMAK_PATTERN_BOOKING", ""),
             "signup": getattr(settings, "IRANPAYAMAK_PATTERN_SIGNUP", ""),
+            "login": getattr(settings, "IRANPAYAMAK_PATTERN_LOGIN", ""),
         }
         return per_purpose.get(purpose) or getattr(settings, "IRANPAYAMAK_PATTERN_CODE", "")
 

@@ -41,7 +41,9 @@ class SignupView(APIView):
     throttle_scope = "auth"
 
     def post(self, request):
-        from apps.otp.services import check_verification_token
+        from apps.accounts.models import User
+        from apps.accounts.services import register_successful_login, tokens_for_user
+        from apps.otp.services import check_verification_token, normalize_phone
 
         serializer = SignupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -54,6 +56,19 @@ class SignupView(APIView):
                 {"error": {"code": "phone_unverified", "message": "Verify your phone first."}},
                 status=400,
             )
+
+        phone = normalize_phone(data["phone"])
+        data["phone"] = phone
+
+        # Phone already registered -> a returning owner; log them in instead of
+        # erroring (one phone == one business). The rest of the form is ignored.
+        existing = User.objects.filter(phone=phone, is_active=True).first()
+        if existing is not None:
+            register_successful_login(existing)
+            return Response({"login": True, **tokens_for_user(existing)})
+
+        # New phone: create the account + business (onboard raises email_taken if the
+        # email is already in use), then log them straight into the panel.
         try:
             result = onboard(**data)
         except DomainError as exc:
@@ -61,4 +76,6 @@ class SignupView(APIView):
                 {"error": {"code": exc.code, "message": exc.message}},
                 status=exc.status_code,
             )
-        return Response(result, status=status.HTTP_201_CREATED)
+        owner = User.objects.get(email=data["email"].lower())
+        register_successful_login(owner)
+        return Response({**result, **tokens_for_user(owner)}, status=status.HTTP_201_CREATED)

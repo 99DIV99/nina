@@ -26,6 +26,18 @@ def register_successful_login(user) -> None:
         user.save(update_fields=["failed_login_attempts", "locked_until"])
 
 
+def tokens_for_user(user) -> dict:
+    """Mint access+refresh JWTs for `user`. The refresh token is recorded in the
+    public schema (token_blacklist OutstandingToken) regardless of the active
+    schema, so issued tokens are always auditable/revocable from one place."""
+    from django_tenants.utils import get_public_schema_name, schema_context
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    with schema_context(get_public_schema_name()):
+        refresh = RefreshToken.for_user(user)
+        return {"access": str(refresh.access_token), "refresh": str(refresh)}
+
+
 def make_email_verification_token(user) -> str:
     return _email_signer.sign(str(user.pk))
 
