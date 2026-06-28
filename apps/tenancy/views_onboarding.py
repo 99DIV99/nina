@@ -1,9 +1,16 @@
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.common.api_schema import ErrorResponseSerializer
 from apps.common.exceptions import DomainError
 from apps.tenancy.models import BusinessType
 from apps.tenancy.onboarding import onboard
@@ -13,6 +20,25 @@ from apps.tenancy.subdomains import is_available, validate_subdomain
 class SubdomainCheckView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="Check whether a subdomain is available",
+        parameters=[
+            OpenApiParameter(
+                "subdomain", str, required=True, description="Desired subdomain to validate."
+            )
+        ],
+        responses={
+            200: inline_serializer(
+                "SubdomainCheck",
+                {
+                    "available": serializers.BooleanField(),
+                    "subdomain": serializers.CharField(required=False),
+                    "reason": serializers.CharField(required=False),
+                    "message": serializers.CharField(required=False),
+                },
+            )
+        },
+    )
     def get(self, request):
         raw = request.query_params.get("subdomain", "")
         try:
@@ -41,6 +67,33 @@ class SignupSerializer(serializers.Serializer):
     otp_token = serializers.CharField()
 
 
+@extend_schema(
+    summary="Sign up: create owner + business (or log in a returning owner)",
+    request=SignupSerializer,
+    responses={
+        201: inline_serializer(
+            "SignupResponse",
+            {
+                "business_id": serializers.IntegerField(),
+                "schema": serializers.CharField(),
+                "subdomain": serializers.CharField(),
+                "live_url": serializers.CharField(),
+                "owner_email": serializers.EmailField(),
+                "access": serializers.CharField(),
+                "refresh": serializers.CharField(),
+            },
+        ),
+        200: inline_serializer(
+            "SignupLoginResponse",
+            {
+                "login": serializers.BooleanField(),
+                "access": serializers.CharField(),
+                "refresh": serializers.CharField(),
+            },
+        ),
+        400: OpenApiResponse(ErrorResponseSerializer, "Unverified phone or email already taken."),
+    },
+)
 class SignupView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]

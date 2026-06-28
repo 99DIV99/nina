@@ -1,12 +1,14 @@
 """OTP request/verify endpoints. Public (sign-up) + tenant (booking) share these;
 the active schema decides which OtpCode table is used."""
 
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.common.api_schema import ErrorResponseSerializer
 from apps.common.exceptions import DomainError
 from apps.otp.models import OtpPurpose
 from apps.otp.services import request_otp, verify_otp
@@ -37,6 +39,20 @@ def _sms_business(request, purpose: str) -> str:
     return profile.display_name or getattr(request.tenant, "name", "") or PLATFORM_NAME
 
 
+@extend_schema(
+    summary="Request an OTP (sign-up or booking verification)",
+    request=_RequestSerializer,
+    responses={
+        201: inline_serializer(
+            "OtpRequestResponse",
+            {
+                "phone": serializers.CharField(),
+                "expires_in": serializers.IntegerField(),
+            },
+        ),
+        429: OpenApiResponse(ErrorResponseSerializer, "Cooldown or hourly cap reached."),
+    },
+)
 class RequestOtpView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -56,6 +72,22 @@ class RequestOtpView(APIView):
         return Response(result, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(
+    summary="Verify an OTP code and receive a short-lived verification token",
+    request=_VerifySerializer,
+    responses={
+        200: inline_serializer(
+            "OtpVerifyResponse",
+            {
+                "verified": serializers.BooleanField(),
+                "token": serializers.CharField(
+                    help_text="Signed token to attach to the matching booking/sign-up call."
+                ),
+            },
+        ),
+        400: OpenApiResponse(ErrorResponseSerializer, "Invalid or expired code."),
+    },
+)
 class VerifyOtpView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]

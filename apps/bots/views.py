@@ -7,6 +7,8 @@ Bot APIs (B7).
   (confirm/reject bot-created bookings), gated by bots.manage.
 """
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -20,6 +22,7 @@ from apps.booking.models import Appointment, AppointmentStatus
 from apps.booking.serializers import AppointmentSerializer
 from apps.bots.models import Bot, Conversation, Message
 from apps.bots.pipeline import handle_message
+from apps.common.api_schema import ErrorResponseSerializer
 
 
 class BotSerializer(serializers.ModelSerializer):
@@ -55,6 +58,11 @@ class BotViewSet(viewsets.ModelViewSet):
     permission_classes = [HasPermission]
     required_permission = P_BOTS_MANAGE
 
+    @extend_schema(
+        summary="Rotate the widget secret",
+        request=None,
+        responses={200: inline_serializer("BotSecret", {"secret": serializers.CharField()})},
+    )
     @action(detail=True, methods=["post"], url_path="rotate-secret")
     def rotate_secret(self, request, pk=None):
         from apps.bots.models import _gen_token
@@ -64,6 +72,27 @@ class BotViewSet(viewsets.ModelViewSet):
         bot.save(update_fields=["secret"])
         return Response({"secret": bot.secret})
 
+    @extend_schema(
+        summary="Connect a Telegram bot (register the webhook)",
+        request=inline_serializer(
+            "TelegramConnect",
+            {
+                "telegram_bot_token": serializers.CharField(),
+                "register": serializers.BooleanField(required=False, default=True),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                "TelegramConnectResponse",
+                {
+                    "webhook_url": serializers.CharField(),
+                    "webhook_secret": serializers.CharField(),
+                    "registered_with_telegram": serializers.BooleanField(),
+                },
+            ),
+            400: OpenApiResponse(ErrorResponseSerializer, "telegram_bot_token required"),
+        },
+    )
     @action(detail=True, methods=["post"], url_path="telegram/connect")
     def telegram_connect(self, request, pk=None):
         """Opt-in: a business supplies its own @BotFather token; we register the
@@ -93,6 +122,27 @@ class BotViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @extend_schema(
+        summary="Connect a Bale bot (register the webhook)",
+        request=inline_serializer(
+            "BaleConnect",
+            {
+                "bale_bot_token": serializers.CharField(),
+                "register": serializers.BooleanField(required=False, default=True),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                "BaleConnectResponse",
+                {
+                    "webhook_url": serializers.CharField(),
+                    "webhook_secret": serializers.CharField(),
+                    "registered_with_bale": serializers.BooleanField(),
+                },
+            ),
+            400: OpenApiResponse(ErrorResponseSerializer, "bale_bot_token required"),
+        },
+    )
     @action(detail=True, methods=["post"], url_path="bale/connect")
     def bale_connect(self, request, pk=None):
         """Opt-in: a business supplies its Bale bot token; we register the
@@ -131,12 +181,28 @@ class ReviewQueueView(APIView):
     permission_classes = [HasPermission]
     required_permission = P_BOTS_MANAGE
 
+    @extend_schema(
+        summary="List bot-created appointments awaiting review",
+        responses={200: AppointmentSerializer(many=True)},
+    )
     def get(self, request):
         qs = Appointment.objects.filter(
             source="bot", status=AppointmentStatus.PENDING
         ).select_related("service", "staff", "customer")
         return Response(AppointmentSerializer(qs, many=True).data)
 
+    @extend_schema(
+        summary="Confirm or reject a bot-created appointment",
+        request=inline_serializer(
+            "ReviewDecision",
+            {"decision": serializers.ChoiceField(choices=["confirm", "reject"])},
+        ),
+        responses={
+            200: AppointmentSerializer,
+            400: OpenApiResponse(ErrorResponseSerializer, "confirm|reject"),
+            404: OpenApiResponse(ErrorResponseSerializer, "Not found."),
+        },
+    )
     def post(self, request, pk):
         appt = Appointment.objects.filter(pk=pk, source="bot").first()
         if appt is None:
@@ -163,6 +229,24 @@ class WidgetMessageView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "bot"
 
+    @extend_schema(
+        summary="Send a message to the booking assistant (web widget)",
+        request=inline_serializer(
+            "WidgetMessage",
+            {
+                "text": serializers.CharField(max_length=1000),
+                "secret": serializers.CharField(
+                    required=False, help_text="Or send as X-Bot-Secret header."
+                ),
+                "conversation_id": serializers.IntegerField(required=False),
+                "session_id": serializers.CharField(required=False),
+            },
+        ),
+        responses={
+            200: OpenApiResponse(OpenApiTypes.OBJECT, "Assistant reply + conversation id."),
+            401: OpenApiResponse(ErrorResponseSerializer, "Invalid bot credential."),
+        },
+    )
     def post(self, request):
         secret = request.headers.get("X-Bot-Secret") or request.data.get("secret", "")
         bot = Bot.objects.filter(secret=secret, is_enabled=True).first() if secret else None
@@ -207,6 +291,11 @@ class TelegramWebhookView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "bot"
 
+    @extend_schema(
+        summary="Telegram webhook (inbound updates for this tenant)",
+        request=OpenApiTypes.OBJECT,
+        responses={200: inline_serializer("WebhookAck", {"ok": serializers.BooleanField()})},
+    )
     def post(self, request):
         from apps.bots.telegram import parse_update, send_message
 
@@ -249,6 +338,11 @@ class BaleWebhookView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "bot"
 
+    @extend_schema(
+        summary="Bale webhook (inbound updates for this tenant)",
+        request=OpenApiTypes.OBJECT,
+        responses={200: inline_serializer("BaleWebhookAck", {"ok": serializers.BooleanField()})},
+    )
     def post(self, request):
         from apps.bots.bale import parse_update, send_message
 
@@ -283,6 +377,28 @@ class TranscriptView(APIView):
     permission_classes = [HasPermission]
     required_permission = P_BOTS_MANAGE
 
+    @extend_schema(
+        summary="Full message transcript for a conversation",
+        responses={
+            200: inline_serializer(
+                "Transcript",
+                {
+                    "conversation_id": serializers.IntegerField(),
+                    "messages": serializers.ListField(
+                        child=inline_serializer(
+                            "TranscriptMessage",
+                            {
+                                "role": serializers.CharField(),
+                                "text": serializers.CharField(),
+                                "at": serializers.DateTimeField(),
+                            },
+                        )
+                    ),
+                },
+            ),
+            404: OpenApiResponse(ErrorResponseSerializer, "Not found."),
+        },
+    )
     def get(self, request, pk):
         conversation = Conversation.objects.filter(pk=pk).first()
         if conversation is None:

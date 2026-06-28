@@ -1,4 +1,5 @@
-from rest_framework import status
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -9,6 +10,7 @@ from apps.accounts.authorization import current_business, current_membership
 from apps.accounts.models import User
 from apps.accounts.serializers import LoginSerializer, MeSerializer
 from apps.accounts.services import register_successful_login, tokens_for_user
+from apps.common.api_schema import ErrorResponseSerializer, TokenPairSerializer
 from apps.common.exceptions import DomainError
 from apps.otp.models import OtpPurpose
 from apps.otp.services import normalize_phone, request_otp, verify_otp
@@ -23,6 +25,14 @@ class PasswordLoginView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
 
+    @extend_schema(
+        summary="Password login (secondary method)",
+        request=LoginSerializer,
+        responses={
+            200: TokenPairSerializer,
+            401: OpenApiResponse(ErrorResponseSerializer, "Invalid credentials."),
+        },
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -49,6 +59,21 @@ class PasswordLoginView(APIView):
 class RefreshView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="Exchange a refresh token for a new access token",
+        request=inline_serializer("RefreshRequest", {"refresh": serializers.CharField()}),
+        responses={
+            200: inline_serializer(
+                "RefreshResponse",
+                {
+                    "access": serializers.CharField(),
+                    "refresh": serializers.CharField(required=False),
+                },
+            ),
+            400: OpenApiResponse(ErrorResponseSerializer, "refresh token required"),
+            401: OpenApiResponse(ErrorResponseSerializer, "invalid refresh token"),
+        },
+    )
     def post(self, request):
         token = request.data.get("refresh")
         if not token:
@@ -72,6 +97,11 @@ class RefreshView(APIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Log out (client discards tokens)",
+        request=None,
+        responses={204: OpenApiResponse(description="No content.")},
+    )
     def post(self, request):
         # Stateless JWT: client discards tokens. (Blacklist app can be added later.)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -82,6 +112,13 @@ class MeView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Authenticated identity + tenant role/permissions",
+        responses={
+            200: MeSerializer,
+            403: OpenApiResponse(ErrorResponseSerializer, "Not a member of this business."),
+        },
+    )
     def get(self, request):
         membership = current_membership(request)
         if current_business(request) is not None and membership is None:
@@ -101,6 +138,21 @@ class OtpLoginRequestView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
 
+    @extend_schema(
+        summary="OTP login step 1 — send a login code to a known phone",
+        request=inline_serializer("OtpLoginRequest", {"phone": serializers.CharField()}),
+        responses={
+            200: inline_serializer(
+                "OtpLoginRequestResponse",
+                {
+                    "sent": serializers.BooleanField(),
+                    "needs_signup": serializers.BooleanField(required=False),
+                    "expires_in": serializers.IntegerField(required=False),
+                },
+            ),
+            400: OpenApiResponse(ErrorResponseSerializer, "Enter a valid phone number."),
+        },
+    )
     def post(self, request):
         phone = normalize_phone(request.data.get("phone", ""))
         if len(phone) < 7:
@@ -127,6 +179,18 @@ class OtpLoginVerifyView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
 
+    @extend_schema(
+        summary="OTP login step 2 — verify the code and receive tokens",
+        request=inline_serializer(
+            "OtpLoginVerify",
+            {"phone": serializers.CharField(), "code": serializers.CharField()},
+        ),
+        responses={
+            200: TokenPairSerializer,
+            400: OpenApiResponse(ErrorResponseSerializer, "Invalid or expired code."),
+            404: OpenApiResponse(ErrorResponseSerializer, "No account for this number."),
+        },
+    )
     def post(self, request):
         phone = normalize_phone(request.data.get("phone", ""))
         code = str(request.data.get("code", "")).strip()

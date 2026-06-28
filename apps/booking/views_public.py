@@ -5,6 +5,7 @@ authorized by a signed token, never by a guessable id.
 """
 
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -14,8 +15,9 @@ from rest_framework.views import APIView
 from apps.booking import services as booking_services
 from apps.booking.models import Appointment, Customer, Service, StaffMember
 from apps.booking.serializers import AvailabilityQuerySerializer, ServiceSerializer
-from apps.booking.views import _availability_payload
+from apps.booking.views import AvailabilityResponseSerializer, _availability_payload
 from apps.business.models import DEFAULT_VOCABULARY, BusinessProfile
+from apps.common.api_schema import ErrorResponseSerializer
 from apps.common.exceptions import DomainError
 
 _appt_signer = TimestampSigner(salt="nina.public.appointment")
@@ -31,6 +33,42 @@ class PublicBusinessView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
 
+    @extend_schema(
+        summary="Public branding, vocabulary and policies for the booking page",
+        responses={
+            200: inline_serializer(
+                "PublicBusiness",
+                {
+                    "business": inline_serializer(
+                        "PublicBusinessIdentity",
+                        {
+                            "name": serializers.CharField(),
+                            "is_active": serializers.BooleanField(),
+                        },
+                    ),
+                    "experience": serializers.CharField(),
+                    "branding": inline_serializer(
+                        "PublicBranding",
+                        {
+                            "displayName": serializers.CharField(),
+                            "logoUrl": serializers.CharField(allow_blank=True),
+                            "primaryColor": serializers.CharField(),
+                            "accentColor": serializers.CharField(),
+                        },
+                    ),
+                    "vocabulary": serializers.DictField(child=serializers.CharField()),
+                    "policies": inline_serializer(
+                        "PublicPolicies",
+                        {
+                            "timezone": serializers.CharField(),
+                            "cancellationWindowHours": serializers.IntegerField(),
+                            "requirePhoneOtp": serializers.BooleanField(),
+                        },
+                    ),
+                },
+            )
+        },
+    )
     def get(self, request):
         business = request.tenant
         profile = BusinessProfile.get_solo()
@@ -72,6 +110,10 @@ class PublicServiceListView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
 
+    @extend_schema(
+        summary="List bookable services",
+        responses={200: ServiceSerializer(many=True)},
+    )
     def get(self, request):
         services = Service.objects.filter(is_active=True).prefetch_related("staff")
         return Response(ServiceSerializer(services, many=True).data)
@@ -81,6 +123,11 @@ class PublicAvailabilityView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
 
+    @extend_schema(
+        summary="Bookable slots for a service (public)",
+        parameters=[AvailabilityQuerySerializer],
+        responses={200: AvailabilityResponseSerializer, 404: ErrorResponseSerializer},
+    )
     def get(self, request):
         ser = AvailabilityQuerySerializer(data=request.query_params)
         ser.is_valid(raise_exception=True)
@@ -107,6 +154,25 @@ class PublicBookingCreateView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
 
+    @extend_schema(
+        summary="Book an appointment as a guest",
+        request=GuestBookingSerializer,
+        responses={
+            201: inline_serializer(
+                "PublicBookingCreated",
+                {
+                    "id": serializers.IntegerField(),
+                    "status": serializers.CharField(),
+                    "start_at": serializers.DateTimeField(),
+                    "end_at": serializers.DateTimeField(),
+                    "manage_token": serializers.CharField(
+                        help_text="Signed token used to reschedule/cancel later."
+                    ),
+                },
+            ),
+            400: OpenApiResponse(ErrorResponseSerializer, "Unverified phone or unavailable slot."),
+        },
+    )
     def post(self, request):
         ser = GuestBookingSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
@@ -169,6 +235,31 @@ class PublicBookingManageView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
 
+    @extend_schema(
+        summary="Reschedule or cancel a guest booking (signed token)",
+        request=inline_serializer(
+            "PublicBookingManageRequest",
+            {
+                "token": serializers.CharField(help_text="The manage_token from booking."),
+                "action": serializers.ChoiceField(choices=["cancel", "reschedule"]),
+                "start_at": serializers.DateTimeField(
+                    required=False, help_text="Required when action=reschedule."
+                ),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                "PublicBookingManageResponse",
+                {
+                    "id": serializers.IntegerField(),
+                    "status": serializers.CharField(),
+                    "start_at": serializers.DateTimeField(),
+                },
+            ),
+            400: OpenApiResponse(ErrorResponseSerializer, "Unknown action / invalid time."),
+            404: OpenApiResponse(ErrorResponseSerializer, "Invalid or expired token."),
+        },
+    )
     def post(self, request):
         token = request.data.get("token", "")
         appt = _resolve_token(token)

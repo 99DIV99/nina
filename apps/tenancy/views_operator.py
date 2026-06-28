@@ -1,11 +1,18 @@
 """Platform operator console APIs (B8). Public schema; platform-staff only."""
 
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
 from rest_framework import serializers
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsPlatformOperator
+from apps.common.api_schema import ErrorResponseSerializer
 from apps.tenancy.models import Business
 from apps.tenancy.provisioning import reactivate, suspend
 
@@ -37,6 +44,10 @@ class BusinessAdminSerializer(serializers.ModelSerializer):
         return d.domain if d else None
 
 
+@extend_schema(
+    summary="List tenants (operator console)",
+    parameters=[OpenApiParameter("q", str, description="Case-insensitive name search.")],
+)
 class TenantListView(ListAPIView):
     permission_classes = [IsPlatformOperator]
     serializer_class = BusinessAdminSerializer
@@ -49,6 +60,24 @@ class TenantListView(ListAPIView):
         return qs
 
 
+@extend_schema(
+    summary="Suspend / reactivate / set feature flags on a tenant",
+    request=inline_serializer(
+        "TenantAction",
+        {
+            "action": serializers.ChoiceField(choices=["suspend", "reactivate", "set_flags"]),
+            "flags": serializers.DictField(
+                required=False,
+                help_text="For action=set_flags: has_accounting|has_records|has_bots|has_sms|plan.",
+            ),
+        },
+    ),
+    responses={
+        200: BusinessAdminSerializer,
+        400: OpenApiResponse(ErrorResponseSerializer, "Unknown action."),
+        404: OpenApiResponse(ErrorResponseSerializer, "Tenant not found."),
+    },
+)
 class TenantActionView(APIView):
     permission_classes = [IsPlatformOperator]
 

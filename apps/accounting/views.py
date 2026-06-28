@@ -1,6 +1,13 @@
 """Accounting API (B6). Flag-gated + permission-gated."""
 
-from rest_framework import status, viewsets
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    extend_schema_view,
+    inline_serializer,
+)
+from rest_framework import serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,12 +20,28 @@ from apps.accounting.serializers import (
 )
 from apps.accounts.authorization import P_ACCOUNTING_MANAGE, P_ACCOUNTING_VIEW
 from apps.accounts.permissions import HasPermission
+from apps.common.api_schema import ErrorResponseSerializer
 
 
 class _AccountingPerm(HasPermission):
     pass
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List transactions (filter by type)",
+        parameters=[
+            OpenApiParameter(
+                "type", str, description="Filter by transaction type, e.g. income|expense."
+            )
+        ],
+    ),
+    create=extend_schema(
+        summary="Record a manual expense (income is automatic)",
+        request=ExpenseCreateSerializer,
+        responses={201: TransactionSerializer, 400: ErrorResponseSerializer},
+    ),
+)
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
@@ -57,6 +80,30 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         serializer.save(number=services.next_invoice_number())
 
 
+@extend_schema(
+    summary="Income / expense / net for a date range",
+    parameters=[
+        OpenApiParameter(
+            "date_from", OpenApiTypes.DATE, required=True, description="Range start (inclusive)."
+        ),
+        OpenApiParameter(
+            "date_to", OpenApiTypes.DATE, required=True, description="Range end (inclusive)."
+        ),
+    ],
+    responses={
+        200: inline_serializer(
+            "PeriodReport",
+            {
+                "date_from": serializers.CharField(),
+                "date_to": serializers.CharField(),
+                "income": serializers.CharField(),
+                "expense": serializers.CharField(),
+                "net": serializers.CharField(),
+            },
+        ),
+        400: ErrorResponseSerializer,
+    },
+)
 class ReportView(APIView):
     permission_classes = [HasPermission]
     required_permission = P_ACCOUNTING_VIEW

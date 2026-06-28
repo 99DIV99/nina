@@ -1,6 +1,13 @@
 """Panel booking API (B4). All writes are gated by booking.manage / staff.manage."""
 
-from rest_framework import status, viewsets
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    extend_schema_view,
+    inline_serializer,
+)
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -29,6 +36,7 @@ from apps.booking.serializers import (
     TimeOffSerializer,
 )
 from apps.business.models import BusinessProfile
+from apps.common.api_schema import ErrorResponseSerializer
 from apps.common.exceptions import DomainError
 
 
@@ -79,6 +87,24 @@ class TimeOffViewSet(_PermViewSet):
     manage_permission = P_STAFF_MANAGE
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List appointments (filterable)",
+        parameters=[
+            OpenApiParameter("status", str, description="Filter by status."),
+            OpenApiParameter("staff", int, description="Filter by staff id."),
+            OpenApiParameter(
+                "date_from", OpenApiTypes.DATE, description="Only on/after this date."
+            ),
+            OpenApiParameter("date_to", OpenApiTypes.DATE, description="Only on/before this date."),
+        ],
+    ),
+    create=extend_schema(
+        summary="Create an appointment (panel)",
+        request=AppointmentCreateSerializer,
+        responses={201: AppointmentSerializer, 400: ErrorResponseSerializer},
+    ),
+)
 class AppointmentViewSet(_PermViewSet):
     queryset = Appointment.objects.select_related("service", "staff", "customer")
     serializer_class = AppointmentSerializer
@@ -122,6 +148,11 @@ class AppointmentViewSet(_PermViewSet):
             )
         return Response(AppointmentSerializer(appt).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        summary="Confirm an appointment",
+        request=None,
+        responses={200: AppointmentSerializer},
+    )
     @action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
         appt = self.get_object()
@@ -131,18 +162,38 @@ class AppointmentViewSet(_PermViewSet):
         appt.save(update_fields=["status", "updated_at"])
         return Response(AppointmentSerializer(appt).data)
 
+    @extend_schema(
+        summary="Cancel an appointment",
+        request=None,
+        responses={200: AppointmentSerializer, 400: ErrorResponseSerializer},
+    )
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         return self._transition(booking_services.cancel)
 
+    @extend_schema(
+        summary="Mark an appointment complete (posts income)",
+        request=None,
+        responses={200: AppointmentSerializer, 400: ErrorResponseSerializer},
+    )
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
         return self._transition(booking_services.complete)
 
+    @extend_schema(
+        summary="Mark an appointment as a no-show",
+        request=None,
+        responses={200: AppointmentSerializer, 400: ErrorResponseSerializer},
+    )
     @action(detail=True, methods=["post"], url_path="no-show")
     def no_show(self, request, pk=None):
         return self._transition(booking_services.mark_no_show)
 
+    @extend_schema(
+        summary="Reschedule an appointment",
+        request=RescheduleSerializer,
+        responses={200: AppointmentSerializer, 400: ErrorResponseSerializer},
+    )
     @action(detail=True, methods=["post"])
     def reschedule(self, request, pk=None):
         appt = self.get_object()
@@ -174,6 +225,32 @@ class AppointmentViewSet(_PermViewSet):
         return Response(AppointmentSerializer(appt).data)
 
 
+class StaffSlotsSerializer(serializers.Serializer):
+    staff = StaffSerializer()
+    slots = serializers.ListField(
+        child=inline_serializer(
+            "AvailabilitySlot",
+            {
+                "start": serializers.DateTimeField(),
+                "end": serializers.DateTimeField(),
+                "staff_id": serializers.IntegerField(),
+            },
+        )
+    )
+
+
+class AvailabilityResponseSerializer(serializers.Serializer):
+    """Bookable slots per qualified staff member for a service over a date range."""
+
+    service = serializers.IntegerField()
+    availability = StaffSlotsSerializer(many=True)
+
+
+@extend_schema(
+    summary="Bookable slots for a service (panel)",
+    parameters=[AvailabilityQuerySerializer],
+    responses={200: AvailabilityResponseSerializer},
+)
 class AvailabilityView(APIView):
     permission_classes = [IsTenantMember]
 
