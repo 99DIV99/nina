@@ -115,3 +115,27 @@ def test_page_patch_rejects_bad_template_and_channel(tenant):
         "/api/v1/context/page", {"channels": {"myspace": "x"}}, format="json"
     )
     assert bad_channel.status_code == 400
+
+
+# --- analytics --------------------------------------------------------------
+
+
+def test_analytics_capture_and_aggregate(tenant):
+    owner = make_user(email="owner3@book.io", phone="09120007003")
+    add_member(owner, tenant, role=Role.OWNER)
+
+    pub = APIClient()
+    for _ in range(2):
+        ping = pub.post(
+            "/api/v1/public/page/view", {"ref": "qr"}, format="json", HTTP_HOST="book.localhost"
+        )
+        assert ping.status_code == 204
+
+    resp = _dash(owner).get("/api/v1/context/page/analytics?range=7")
+    assert resp.status_code == 200, resp.content
+    d = resp.json()
+    assert d["range"] == 7
+    assert d["views"] == 2
+    # Same client (same IP+UA, same day) dedups to one unique visitor.
+    assert d["visitors"] == 1
+    assert len(d["series"]) >= 1

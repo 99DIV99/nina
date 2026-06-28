@@ -78,3 +78,19 @@ DEFAULT_VOCABULARY = {
     "clinic": {"customer": "patient", "appointment": "visit", "staff": "practitioner"},
     "general": {"customer": "customer", "appointment": "appointment", "staff": "staff"},
 }
+
+
+class PageView(models.Model):
+    """A view of the public booking page (per-tenant). Cookieless and PII-free:
+    visitors are deduped per day via a salted hash of IP+UA that rotates daily and
+    is irreversible — we can count unique visitors without storing who they are."""
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    visitor_hash = models.CharField(max_length=64, db_index=True)
+    ref = models.CharField(max_length=40, blank=True)  # traffic source tag (?ref=)
+
+    class Meta:
+        db_table = "page_view"
+
+    def __str__(self) -> str:
+        return f"view @ {self.created_at:%Y-%m-%d %H:%M}"

@@ -403,3 +403,22 @@ class PublicPageView(APIView):
                 "hours": _public_hours() if profile.show_hours else [],
             }
         )
+
+
+class PublicPageViewTrack(APIView):
+    """Record a public-page view — a cookieless ping the page fires on load. No PII;
+    visitors are deduped per day by a salted IP+UA hash (apps.business.analytics)."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    @extend_schema(
+        summary="Record a page view (cookieless, no PII)",
+        request=inline_serializer("PageViewPing", {"ref": serializers.CharField(required=False)}),
+        responses={204: OpenApiResponse(description="Recorded.")},
+    )
+    def post(self, request):
+        from apps.business.analytics import record_page_view
+
+        record_page_view(request, ref=str(request.data.get("ref", "")))
+        return Response(status=status.HTTP_204_NO_CONTENT)

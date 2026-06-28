@@ -1,6 +1,16 @@
+from datetime import timedelta
+
 from django.conf import settings
+from django.db.models import Count
+from django.db.models.functions import TruncDate
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,7 +18,7 @@ from rest_framework.views import APIView
 from apps.accounts.authorization import P_SETTINGS_MANAGE, current_membership
 from apps.accounts.permissions import HasPermission, IsTenantMember
 from apps.business.context import build_context
-from apps.business.models import BusinessProfile
+from apps.business.models import BusinessProfile, PageView
 from apps.business.serializers import BusinessProfileSerializer, PageSettingsSerializer
 from apps.common.api_schema import ErrorResponseSerializer
 from apps.common.exceptions import DomainError
@@ -158,3 +168,61 @@ class PageSettingsView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class PageAnalyticsView(APIView):
+    """Public-page analytics: total views + unique visitors + a daily series for the
+    trend sparkline. Cookieless and PII-free (see apps.business.analytics)."""
+
+    permission_classes = [IsTenantMember]
+
+    @extend_schema(
+        summary="Your Page analytics (views, visitors, trend)",
+        parameters=[
+            OpenApiParameter("range", int, description="Window in days: 7, 30 (default) or 90.")
+        ],
+        responses={
+            200: inline_serializer(
+                "PageAnalytics",
+                {
+                    "range": serializers.IntegerField(),
+                    "views": serializers.IntegerField(),
+                    "visitors": serializers.IntegerField(),
+                    "series": serializers.ListField(
+                        child=inline_serializer(
+                            "PageAnalyticsDay",
+                            {
+                                "date": serializers.CharField(),
+                                "views": serializers.IntegerField(),
+                                "visitors": serializers.IntegerField(),
+                            },
+                        )
+                    ),
+                },
+            )
+        },
+    )
+    def get(self, request):
+        raw = request.query_params.get("range", "")
+        days = int(raw) if raw.isdigit() else 30
+        if days not in (7, 30, 90):
+            days = 30
+        since = timezone.now() - timedelta(days=days)
+        qs = PageView.objects.filter(created_at__gte=since)
+        series = (
+            qs.annotate(day=TruncDate("created_at"))
+            .values("day")
+            .annotate(views=Count("id"), visitors=Count("visitor_hash", distinct=True))
+            .order_by("day")
+        )
+        return Response(
+            {
+                "range": days,
+                "views": qs.count(),
+                "visitors": qs.values("visitor_hash").distinct().count(),
+                "series": [
+                    {"date": str(r["day"]), "views": r["views"], "visitors": r["visitors"]}
+                    for r in series
+                ],
+            }
+        )
