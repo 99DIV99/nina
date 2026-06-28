@@ -12,6 +12,7 @@ All wrapped so a failure does not leave a half-provisioned tenant.
 """
 
 import logging
+import secrets
 
 from django.conf import settings
 from django.db import transaction
@@ -23,9 +24,18 @@ from apps.tenancy.subdomains import validate_subdomain
 logger = logging.getLogger("nina.provisioning")
 
 
-def schema_name_for(subdomain: str) -> str:
-    # Postgres schema names: keep it derived from the subdomain but hyphen-free.
-    return subdomain.replace("-", "_")
+def _unique_schema_name() -> str:
+    """A permanent, immutable schema name, INDEPENDENT of the (editable) subdomain.
+
+    Postgres schemas must never be renamed, so the name is decoupled from anything
+    the owner can change. Identifier-safe: starts with a letter, lowercase alnum.
+    14 chars (t_ + 12 hex = 48 bits); the loop guards against the astronomical collision.
+    """
+    for _ in range(5):
+        candidate = "t_" + secrets.token_hex(6)  # e.g. t_3f9a1c2b7e4d
+        if not Business.objects.filter(schema_name=candidate).exists():
+            return candidate
+    raise DomainError("Could not allocate a schema name.", code="schema_alloc_failed")
 
 
 @transaction.atomic
@@ -39,12 +49,12 @@ def create_business(
     sub = validate_subdomain(subdomain)
     host = f"{sub}.{settings.BASE_DOMAIN}"
 
+    # Subdomain uniqueness is enforced solely by the Domain row; the subdomain is
+    # editable later, so the (immutable) schema name is NOT derived from it.
     if Domain.objects.filter(domain=host).exists():
         raise DomainError("That subdomain is already taken.", code="subdomain_taken")
 
-    schema = schema_name_for(sub)
-    if Business.objects.filter(schema_name=schema).exists():
-        raise DomainError("That subdomain is already taken.", code="subdomain_taken")
+    schema = _unique_schema_name()
 
     business = Business(
         name=name.strip(),

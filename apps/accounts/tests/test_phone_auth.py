@@ -137,7 +137,7 @@ def test_signup_with_registered_phone_logs_in():
 
 
 def test_signup_new_phone_creates_account_and_logs_in():
-    from apps.tenancy.models import Business
+    from apps.tenancy.models import Business, Domain
 
     token = _signup_otp_token("09120000004")
     resp = _client().post(
@@ -159,7 +159,10 @@ def test_signup_new_phone_creates_account_and_logs_in():
     try:
         assert resp.status_code == 201
         body = resp.json()
-        assert "access" in body and body.get("schema") == "brandnew"
+        # The subdomain is "brandnew"; the schema name is a permanent random id,
+        # decoupled from the (editable) subdomain.
+        assert "access" in body and body.get("subdomain") == "brandnew"
+        assert body.get("schema", "").startswith("t_")
         owner = User.objects.get(phone="09120000004", email="new@x.io")
         assert owner.first_name == "New" and owner.last_name == "Owner"
         assert owner.full_name == "New Owner"  # derived from first+last
@@ -167,6 +170,8 @@ def test_signup_new_phone_creates_account_and_logs_in():
         from django.db import connection
 
         connection.set_schema_to_public()
-        biz = Business.objects.filter(schema_name="brandnew").first()
+        # Schema name is random now, so resolve the tenant via its subdomain.
+        domain = Domain.objects.filter(domain="brandnew.localhost").select_related("tenant").first()
+        biz = domain.tenant if domain else Business.objects.filter(name="Brand New").first()
         if biz is not None:
             biz.delete(force_drop=True)  # instance delete drops the schema
