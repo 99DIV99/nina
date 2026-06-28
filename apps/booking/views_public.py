@@ -5,6 +5,8 @@ authorized by a signed token, never by a guessable id.
 """
 
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.db.models import Max, Min
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
@@ -13,7 +15,7 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.booking import services as booking_services
-from apps.booking.models import Appointment, Customer, Service, StaffMember
+from apps.booking.models import Appointment, BusinessHours, Customer, Service, StaffMember
 from apps.booking.serializers import AvailabilityQuerySerializer, ServiceSerializer
 from apps.booking.views import AvailabilityResponseSerializer, _availability_payload
 from apps.business.models import DEFAULT_VOCABULARY, BusinessProfile
@@ -294,4 +296,92 @@ class PublicBookingManageView(APIView):
             )
         return Response(
             {"id": appt.id, "status": appt.status, "start_at": appt.start_at.isoformat()}
+        )
+
+
+def _services_preview() -> list[dict]:
+    services = Service.objects.filter(is_active=True).order_by("name")
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "durationMinutes": s.duration_minutes,
+            "price": str(s.price),
+        }
+        for s in services
+    ]
+
+
+def _public_hours() -> list[dict]:
+    """Business open hours per weekday = the union (min start, max end) of active
+    staff's working hours. A simple 'we're open' summary for the page."""
+    rows = (
+        BusinessHours.objects.filter(staff__is_active=True)
+        .values("weekday")
+        .annotate(start=Min("start_time"), end=Max("end_time"))
+        .order_by("weekday")
+    )
+    return [
+        {
+            "weekday": r["weekday"],
+            "start": r["start"].strftime("%H:%M"),
+            "end": r["end"].strftime("%H:%M"),
+        }
+        for r in rows
+    ]
+
+
+class PublicPageView(APIView):
+    """Everything the public template engine needs to render the booking mini-site
+    in one call: the chosen template + branding + content + channels + location +
+    (optional) services/hours, plus the accepting-bookings flag."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    @extend_schema(
+        summary="Public page payload (template + content for the renderer)",
+        responses={
+            200: OpenApiResponse(
+                OpenApiTypes.OBJECT,
+                "template, branding, title, description, cover, channels, location, "
+                "services/hours and acceptingBookings.",
+            )
+        },
+    )
+    def get(self, request):
+        business = request.tenant
+        profile = BusinessProfile.get_solo()
+        base_vocab = DEFAULT_VOCABULARY.get(business.experience, DEFAULT_VOCABULARY["general"])
+        vocabulary = {**base_vocab, **(profile.vocabulary or {})}
+        title = profile.display_name or business.name
+        return Response(
+            {
+                "template": profile.template,
+                "acceptingBookings": profile.accepting_bookings,
+                "business": {
+                    "name": business.name,
+                    "experience": business.experience,
+                    "isActive": business.is_active,
+                },
+                "branding": {
+                    "displayName": title,
+                    "logoUrl": profile.logo_url,
+                    "primaryColor": profile.primary_color,
+                    "accentColor": profile.accent_color,
+                },
+                "title": title,
+                "description": profile.description,
+                "coverImageUrl": profile.cover_image_url,
+                "channels": profile.channels or {},
+                "location": {
+                    "latitude": str(profile.latitude) if profile.latitude is not None else None,
+                    "longitude": str(profile.longitude) if profile.longitude is not None else None,
+                },
+                "vocabulary": vocabulary,
+                "showServices": profile.show_services,
+                "showHours": profile.show_hours,
+                "services": _services_preview() if profile.show_services else [],
+                "hours": _public_hours() if profile.show_hours else [],
+            }
         )

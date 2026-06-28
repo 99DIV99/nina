@@ -5,12 +5,14 @@ from apps.booking.views_public import (
     PublicBookingCreateView,
     PublicBookingManageView,
     PublicBusinessView,
+    PublicPageView,
     PublicServiceListView,
 )
 
 app_name = "booking_public"
 
 urlpatterns = [
+    path("page", PublicPageView.as_view(), name="page"),
     path("business", PublicBusinessView.as_view(), name="business"),
     path("services", PublicServiceListView.as_view(), name="services"),
     path("availability", PublicAvailabilityView.as_view(), name="availability"),

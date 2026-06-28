@@ -9,7 +9,7 @@ from apps.accounts.authorization import P_SETTINGS_MANAGE, current_membership
 from apps.accounts.permissions import HasPermission, IsTenantMember
 from apps.business.context import build_context
 from apps.business.models import BusinessProfile
-from apps.business.serializers import BusinessProfileSerializer
+from apps.business.serializers import BusinessProfileSerializer, PageSettingsSerializer
 from apps.common.api_schema import ErrorResponseSerializer
 from apps.common.exceptions import DomainError
 from apps.tenancy.models import Domain
@@ -122,3 +122,39 @@ class ChangeSubdomainView(APIView):
             primary.domain = host
             primary.save(update_fields=["domain"])
         return Response({"subdomain": sub, "live_url": f"https://{host}"})
+
+
+class PageSettingsView(APIView):
+    """Read/update the public-page ('Your Page') settings: template, content,
+    branding and location. Reads are open to any member; writes need settings.manage.
+    (Scheduling policies + security stay on Settings / BusinessProfileView.)"""
+
+    permission_classes = [IsTenantMember]
+
+    @extend_schema(
+        summary="Read Your Page settings",
+        responses={200: PageSettingsSerializer},
+    )
+    def get(self, request):
+        return Response(PageSettingsSerializer(BusinessProfile.get_solo()).data)
+
+    @extend_schema(
+        summary="Update Your Page settings (requires settings.manage)",
+        request=PageSettingsSerializer,
+        responses={
+            200: PageSettingsSerializer,
+            403: OpenApiResponse(ErrorResponseSerializer, "settings.manage required"),
+        },
+    )
+    def patch(self, request):
+        self.required_permission = P_SETTINGS_MANAGE
+        if not HasPermission().has_permission(request, self):
+            return Response(
+                {"error": {"code": "forbidden", "message": "settings.manage required"}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        profile = BusinessProfile.get_solo()
+        serializer = PageSettingsSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
