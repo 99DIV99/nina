@@ -16,12 +16,12 @@ pytestmark = pytest.mark.django_db(transaction=True)
 
 
 def test_login_records_an_outstanding_token():
-    user = make_user(email="solo@test.io", password="pw-123456")
+    user = make_user(email="solo@test.io", password="pw-123456", phone="09120000001")
     before = OutstandingToken.objects.count()
 
     resp = APIClient().post(
         "/api/v1/auth/login",
-        {"email": "solo@test.io", "password": "pw-123456"},
+        {"phone": "09120000001", "password": "pw-123456"},
         format="json",
         HTTP_HOST="dash.localhost",
     )

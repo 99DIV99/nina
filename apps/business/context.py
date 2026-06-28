@@ -6,8 +6,20 @@ per-request and server-side: the frontend may use `experience`/`enabledModules`
 to decide what to render, but every data call is independently authorized.
 """
 
+from django.conf import settings
+
 from apps.accounts.authorization import current_membership, effective_permissions
 from apps.business.models import DEFAULT_VOCABULARY, BusinessProfile
+
+
+def _subdomain_for(business) -> str:
+    """The booking subdomain (primary Domain minus the base domain)."""
+    primary = business.domains.filter(is_primary=True).first()
+    if not primary:
+        return ""
+    suffix = f".{settings.BASE_DOMAIN}"
+    host = primary.domain
+    return host[: -len(suffix)] if host.endswith(suffix) else host
 
 
 def build_context(request) -> dict:
@@ -24,6 +36,7 @@ def build_context(request) -> dict:
             "type": business.business_type,
             "plan": business.plan,
             "is_active": business.is_active,
+            "subdomain": _subdomain_for(business),
         },
         "experience": business.experience,
         "enabledModules": business.enabled_modules(),
@@ -43,6 +56,8 @@ def build_context(request) -> dict:
         "user": {
             "id": request.user.id,
             "email": request.user.email,
+            "phone": request.user.phone,
+            "isPhoneVerified": request.user.is_phone_verified,
             "role": membership.role if membership else None,
             "permissions": sorted(effective_permissions(request)),
         },

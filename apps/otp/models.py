@@ -15,6 +15,8 @@ class OtpPurpose(models.TextChoices):
     SIGNUP = "signup", "Owner sign-up"
     BOOKING = "booking", "Customer booking"
     LOGIN = "login", "Owner passwordless login"
+    PASSWORD_RESET = "password_reset", "Owner password reset"
+    PHONE_CHANGE = "phone_change", "Owner phone-number change"
 
 
 class OtpCode(models.Model):

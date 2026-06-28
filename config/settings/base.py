@@ -277,6 +277,10 @@ IRANPAYAMAK_PATTERN_CODE = env("IRANPAYAMAK_PATTERN_CODE", default="")
 IRANPAYAMAK_PATTERN_BOOKING = env("IRANPAYAMAK_PATTERN_BOOKING", default="")
 IRANPAYAMAK_PATTERN_SIGNUP = env("IRANPAYAMAK_PATTERN_SIGNUP", default="")
 IRANPAYAMAK_PATTERN_LOGIN = env("IRANPAYAMAK_PATTERN_LOGIN", default="")
+# Account-management codes (owner self-service in the dashboard). No generic
+# fallback: these flows stay dark until their dedicated pattern is approved + set.
+IRANPAYAMAK_PATTERN_RESET = env("IRANPAYAMAK_PATTERN_RESET", default="")
+IRANPAYAMAK_PATTERN_PHONE = env("IRANPAYAMAK_PATTERN_PHONE", default="")
 # Pattern variable names — must match the %placeholders% you defined in the panel.
 IRANPAYAMAK_VAR_CODE = env("IRANPAYAMAK_VAR_CODE", default="code")
 IRANPAYAMAK_VAR_BUSINESS = env("IRANPAYAMAK_VAR_BUSINESS", default="business_name")

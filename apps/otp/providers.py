@@ -52,6 +52,16 @@ class IranPayamakProvider(SmsProvider):
     def _pattern_for(purpose: str) -> str:
         """The approved pattern code for this OTP purpose (booking vs signup),
         falling back to the generic pattern when a per-purpose one isn't set."""
+        # Account-management codes require their OWN approved pattern; there is no
+        # generic fallback, so these flows stay dark (send fails cleanly) until the
+        # dedicated pattern code is set in the environment.
+        dedicated_only = {
+            "password_reset": getattr(settings, "IRANPAYAMAK_PATTERN_RESET", ""),
+            "phone_change": getattr(settings, "IRANPAYAMAK_PATTERN_PHONE", ""),
+        }
+        if purpose in dedicated_only:
+            return dedicated_only[purpose]
+
         per_purpose = {
             "booking": getattr(settings, "IRANPAYAMAK_PATTERN_BOOKING", ""),
             "signup": getattr(settings, "IRANPAYAMAK_PATTERN_SIGNUP", ""),

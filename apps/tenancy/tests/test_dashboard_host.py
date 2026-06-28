@@ -46,12 +46,12 @@ def test_login_on_dashboard_issues_token(two_tenants):
     """Login works on the dash host (public schema) and returns a usable token —
     the business is not needed in the token; it's resolved per-request."""
     alpha, _ = two_tenants
-    user = make_user(email="owner@alpha.io", password="pw-123456")
+    user = make_user(email="owner@alpha.io", password="pw-123456", phone="09120009001")
     add_member(user, alpha, role=Role.OWNER)
 
     resp = APIClient().post(
         "/api/v1/auth/login",
-        {"email": "owner@alpha.io", "password": "pw-123456"},
+        {"phone": "09120009001", "password": "pw-123456"},
         format="json",
         HTTP_HOST=DASH,
     )
