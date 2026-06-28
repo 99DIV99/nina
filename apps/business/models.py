@@ -8,6 +8,11 @@ config. It is a singleton per tenant schema.
 
 from django.db import models
 
+# Template chosen by a business is stored as a plain slug value (the frontend owns
+# the actual skins + a slug->component registry, so new templates never need a
+# model change/migration). Unknown slug -> frontend falls back to this default.
+DEFAULT_PAGE_TEMPLATE = "spotlight"
+
 
 class BusinessProfile(models.Model):
     """Singleton (one row) per tenant schema. Branding + vocabulary."""
@@ -17,6 +22,22 @@ class BusinessProfile(models.Model):
     logo_url = models.URLField(blank=True)
     primary_color = models.CharField(max_length=9, default="#111827")
     accent_color = models.CharField(max_length=9, default="#2563eb")
+
+    # ---- Public page ("Your Page") -------------------------------------------
+    # A chosen template (frontend skin, by slug) over the editable content below;
+    # services/hours/map are pulled from their real home, not duplicated here.
+    template = models.CharField(max_length=64, default=DEFAULT_PAGE_TEMPLATE)
+    description = models.CharField(max_length=200, blank=True)  # tagline under the title
+    cover_image_url = models.URLField(blank=True)
+    # Curated channel links, e.g. {"telegram": "@h", "instagram": "h", "website": "..."}.
+    # Allowed keys: telegram, instagram, x, whatsapp, website, phone. Empty = hidden.
+    channels = models.JSONField(default=dict, blank=True)
+    show_services = models.BooleanField(default=True)
+    show_hours = models.BooleanField(default=True)
+    # Owner-controlled "Accepting online bookings" switch. OFF => the public page
+    # shows a friendly closed message; the panel + manual bookings keep working.
+    # Distinct from operator suspension (tenancy.Business.is_active).
+    accepting_bookings = models.BooleanField(default=True)
 
     # Vocabulary overrides, e.g. {"customer": "patient", "appointment": "visit"}
     vocabulary = models.JSONField(default=dict, blank=True)

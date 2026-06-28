@@ -47,6 +47,7 @@ SHARED_APPS = [
     "django_tenants",  # must come first
     "apps.tenancy",  # Business (tenant) + Domain models live in public schema
     "apps.accounts",  # users belong to tenants from the public schema
+    "apps.templates",  # global public-page template catalog (a "template store")
     # Django contrib needed in public schema
     "django.contrib.contenttypes",
     "django.contrib.auth",
