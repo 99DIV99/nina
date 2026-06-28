@@ -46,6 +46,7 @@ class PublicBusinessView(APIView):
                         {
                             "name": serializers.CharField(),
                             "is_active": serializers.BooleanField(),
+                            "acceptingBookings": serializers.BooleanField(),
                         },
                     ),
                     "experience": serializers.CharField(),
@@ -78,7 +79,11 @@ class PublicBusinessView(APIView):
         vocabulary = {**base_vocab, **(profile.vocabulary or {})}
         return Response(
             {
-                "business": {"name": business.name, "is_active": business.is_active},
+                "business": {
+                    "name": business.name,
+                    "is_active": business.is_active,
+                    "acceptingBookings": profile.accepting_bookings,
+                },
                 "experience": business.experience,
                 "branding": {
                     "displayName": profile.display_name or business.name,
@@ -180,6 +185,19 @@ class PublicBookingCreateView(APIView):
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
         profile = BusinessProfile.get_solo()
+
+        # Online/offline switch: the owner can pause public bookings. The panel +
+        # manual bookings are unaffected; existing appointments are untouched.
+        if not profile.accepting_bookings:
+            return Response(
+                {
+                    "error": {
+                        "code": "bookings_closed",
+                        "message": "This business isn't taking online bookings right now.",
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Phone verification gate (secure by default; business can opt out).
         if profile.require_phone_otp:

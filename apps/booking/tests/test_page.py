@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Role
-from apps.booking.models import Service
+from apps.booking.models import Service, StaffMember
 from apps.business.models import BusinessProfile
 from conftest import add_member, make_user
 
@@ -51,6 +51,30 @@ def test_public_page_payload(tenant):
     assert d["channels"]["telegram"] == "@bookco"
     assert d["acceptingBookings"] is True
     assert any(s["name"] == "Cut" for s in d["services"])
+
+
+def test_booking_blocked_when_offline(tenant):
+    with tenant_context(tenant):
+        p = BusinessProfile.get_solo()
+        p.accepting_bookings = False
+        p.require_phone_otp = False
+        p.save()
+        svc = Service.objects.create(name="Cut", duration_minutes=30, price="20.00", is_active=True)
+        staff = StaffMember.objects.create(name="Sam", timezone="UTC", is_active=True)
+
+    resp = APIClient().post(
+        "/api/v1/public/book",
+        {
+            "service": svc.id,
+            "staff": staff.id,
+            "start_at": "2030-01-01T10:00:00Z",
+            "name": "Guest",
+        },
+        format="json",
+        HTTP_HOST="book.localhost",
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "bookings_closed"
 
 
 # --- owner read / write -----------------------------------------------------
