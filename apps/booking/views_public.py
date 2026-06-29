@@ -395,6 +395,7 @@ class PublicPageView(APIView):
                 "location": {
                     "latitude": str(profile.latitude) if profile.latitude is not None else None,
                     "longitude": str(profile.longitude) if profile.longitude is not None else None,
+                    "address": profile.address,
                 },
                 "vocabulary": vocabulary,
                 "showServices": profile.show_services,

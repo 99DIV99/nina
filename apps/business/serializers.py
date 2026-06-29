@@ -38,6 +38,7 @@ class PageSettingsSerializer(serializers.ModelSerializer):
             "template",
             "description",
             "cover_image_url",
+            "address",
             "channels",
             "show_services",
             "show_hours",

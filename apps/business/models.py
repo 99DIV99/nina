@@ -29,6 +29,7 @@ class BusinessProfile(models.Model):
     template = models.CharField(max_length=64, default=DEFAULT_PAGE_TEMPLATE)
     description = models.CharField(max_length=200, blank=True)  # tagline under the title
     cover_image_url = models.URLField(blank=True)
+    address = models.CharField(max_length=200, blank=True)  # human-readable address on the page
     # Curated channel links, e.g. {"telegram": "@h", "instagram": "h", "website": "..."}.
     # Allowed keys: telegram, instagram, x, whatsapp, website, phone. Empty = hidden.
     channels = models.JSONField(default=dict, blank=True)
