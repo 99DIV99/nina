@@ -42,7 +42,7 @@ def build_context(request) -> dict:
         "enabledModules": business.enabled_modules(),
         "branding": {
             "displayName": profile.display_name or business.name,
-            "logoUrl": profile.logo_url,
+            "logoUrl": profile.logo_display_url,
             "primaryColor": profile.primary_color,
             "accentColor": profile.accent_color,
         },

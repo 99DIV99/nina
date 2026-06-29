@@ -6,7 +6,16 @@ The Business (tenant) row with its feature flags lives in the PUBLIC schema
 config. It is a singleton per tenant schema.
 """
 
-from django.db import models
+from django.db import connection, models
+
+
+def logo_upload_path(instance, filename: str) -> str:
+    """Where an uploaded logo is stored. The media volume is SHARED across all
+    tenant schemas, but each schema's BusinessProfile has pk=1, so we namespace by
+    the active schema to avoid cross-tenant collisions. `filename` is a
+    content-hashed name supplied by the upload view."""
+    return f"{connection.schema_name}/{filename}"
+
 
 # Template chosen by a business is stored as a plain slug value (the frontend owns
 # the actual skins + a slug->component registry, so new templates never need a
@@ -19,7 +28,8 @@ class BusinessProfile(models.Model):
 
     # Branding
     display_name = models.CharField(max_length=200, blank=True)
-    logo_url = models.URLField(blank=True)
+    logo_url = models.URLField(blank=True)  # pasted external URL (fallback)
+    logo = models.ImageField(upload_to=logo_upload_path, blank=True)  # uploaded image
     primary_color = models.CharField(max_length=9, default="#111827")
     accent_color = models.CharField(max_length=9, default="#2563eb")
 
@@ -65,6 +75,11 @@ class BusinessProfile(models.Model):
 
     def __str__(self) -> str:
         return self.display_name or "BusinessProfile"
+
+    @property
+    def logo_display_url(self) -> str:
+        """The logo to render: the uploaded image if present, else the pasted URL."""
+        return self.logo.url if self.logo else self.logo_url
 
     @classmethod
     def get_solo(cls) -> "BusinessProfile":

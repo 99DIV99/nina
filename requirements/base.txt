@@ -25,5 +25,8 @@ drf-spectacular==0.27.2
 structlog==24.4.0
 sentry-sdk==2.13.0
 
+# Images (logo upload processing)
+Pillow==10.4.0
+
 # Time / utility
 python-dateutil==2.9.0.post0

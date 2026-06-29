@@ -6,7 +6,9 @@ acme.yourapp.com). The schema has already been switched by TenantMainMiddleware,
 so everything here operates inside the tenant's isolation boundary.
 """
 
-from django.urls import include, path
+from django.conf import settings
+from django.urls import include, path, re_path
+from django.views.static import serve as serve_media
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.common.health import healthz, readyz
@@ -27,4 +29,7 @@ urlpatterns = [
     path("api/v1/", include((v1, "v1"))),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    # User-uploaded media (logos). Served by Django at MVP scale; becomes unused
+    # once storage moves to an object-storage bucket (URLs point off-box then).
+    re_path(r"^media/(?P<path>.*)$", serve_media, {"document_root": settings.MEDIA_ROOT}),
 ]

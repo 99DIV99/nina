@@ -1,6 +1,8 @@
+import hashlib
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -12,6 +14,7 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 from rest_framework import serializers, status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -226,3 +229,43 @@ class PageAnalyticsView(APIView):
                 ],
             }
         )
+
+
+class LogoUploadView(APIView):
+    """Upload a business logo: validated + re-encoded to WebP + resized, stored on
+    the media volume (namespaced by tenant schema), returns the public URL."""
+
+    permission_classes = [HasPermission]
+    required_permission = P_SETTINGS_MANAGE
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        summary="Upload a logo (JPG/PNG/WebP, max 10 MB)",
+        request=inline_serializer("LogoUpload", {"file": serializers.ImageField()}),
+        responses={
+            200: inline_serializer("LogoUploadResponse", {"url": serializers.CharField()}),
+            400: OpenApiResponse(ErrorResponseSerializer, "Invalid / too large / unsupported."),
+        },
+    )
+    def post(self, request):
+        from apps.business.images import process_logo
+
+        uploaded = request.FILES.get("file")
+        if uploaded is None:
+            return Response(
+                {"error": {"code": "no_file", "message": "No file uploaded."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            content = process_logo(uploaded)
+        except DomainError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
+            )
+        data = content.read()
+        digest = hashlib.sha1(data).hexdigest()[:12]  # content hash -> immutable URL
+        profile = BusinessProfile.get_solo()
+        if profile.logo:
+            profile.logo.delete(save=False)  # drop the old file (no orphan/leak)
+        profile.logo.save(f"logo_{digest}.webp", ContentFile(data), save=True)
+        return Response({"url": profile.logo.url})

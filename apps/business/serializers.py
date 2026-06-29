@@ -32,6 +32,9 @@ class PageSettingsSerializer(serializers.ModelSerializer):
     """The 'Your Page' editor surface: template + content + branding + location.
     Scheduling/security policies stay on BusinessProfileSerializer (Settings)."""
 
+    # Effective logo to preview (uploaded image if present, else the pasted URL).
+    logo = serializers.SerializerMethodField()
+
     class Meta:
         model = BusinessProfile
         fields = (
@@ -44,6 +47,7 @@ class PageSettingsSerializer(serializers.ModelSerializer):
             "show_hours",
             "accepting_bookings",
             "display_name",
+            "logo",
             "logo_url",
             "primary_color",
             "accent_color",
@@ -51,7 +55,10 @@ class PageSettingsSerializer(serializers.ModelSerializer):
             "longitude",
             "updated_at",
         )
-        read_only_fields = ("updated_at",)
+        read_only_fields = ("logo", "updated_at")
+
+    def get_logo(self, obj) -> str:
+        return obj.logo_display_url
 
     def validate_template(self, value):
         # Format-only: the frontend owns the template registry (slug -> component).

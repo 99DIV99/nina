@@ -384,7 +384,7 @@ class PublicPageView(APIView):
                 },
                 "branding": {
                     "displayName": title,
-                    "logoUrl": profile.logo_url,
+                    "logoUrl": profile.logo_display_url,
                     "primaryColor": profile.primary_color,
                     "accentColor": profile.accent_color,
                 },
