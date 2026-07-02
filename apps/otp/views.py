@@ -79,10 +79,14 @@ class RequestOtpView(APIView):
         200: inline_serializer(
             "OtpVerifyResponse",
             {
-                "verified": serializers.BooleanField(),
+                "verified": serializers.BooleanField(required=False),
                 "token": serializers.CharField(
-                    help_text="Signed token to attach to the matching booking/sign-up call."
+                    required=False,
+                    help_text="Signed token to attach to the matching booking/sign-up call.",
                 ),
+                "login": serializers.BooleanField(required=False),
+                "access": serializers.CharField(required=False),
+                "refresh": serializers.CharField(required=False),
             },
         ),
         400: OpenApiResponse(ErrorResponseSerializer, "Invalid or expired code."),
@@ -106,4 +110,16 @@ class VerifyOtpView(APIView):
             return Response(
                 {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
             )
+            
+        if ser.validated_data["purpose"] == OtpPurpose.SIGNUP:
+            from apps.accounts.models import User
+            from apps.accounts.services import register_successful_login, tokens_for_user
+            from apps.otp.services import normalize_phone
+
+            phone = normalize_phone(ser.validated_data["phone"])
+            existing_user = User.objects.filter(phone=phone, is_active=True).first()
+            if existing_user is not None:
+                register_successful_login(existing_user)
+                return Response({"login": True, **tokens_for_user(existing_user)})
+
         return Response({"verified": True, "token": token})
