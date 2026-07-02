@@ -62,6 +62,17 @@ class RequestOtpView(APIView):
         ser = _RequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         purpose = ser.validated_data["purpose"]
+
+        # If frontend requests SIGNUP but the user already exists, override it to LOGIN
+        # so they receive the correct SMS template.
+        if purpose == OtpPurpose.SIGNUP:
+            from apps.accounts.models import User
+            from apps.otp.services import normalize_phone
+
+            phone = normalize_phone(ser.validated_data["phone"])
+            if User.objects.filter(phone=phone, is_active=True).exists():
+                purpose = OtpPurpose.LOGIN
+
         business = _sms_business(request, purpose)
         try:
             result = request_otp(ser.validated_data["phone"], purpose, business=business)
@@ -100,10 +111,25 @@ class VerifyOtpView(APIView):
     def post(self, request):
         ser = _VerifySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+
+        frontend_purpose = ser.validated_data["purpose"]
+        purpose = frontend_purpose
+
+        # We must mirror the override logic here so the verification matches what was sent
+        from apps.accounts.models import User
+        from apps.otp.services import normalize_phone
+
+        phone = normalize_phone(ser.validated_data["phone"])
+        existing_user = None
+        if frontend_purpose == OtpPurpose.SIGNUP:
+            existing_user = User.objects.filter(phone=phone, is_active=True).first()
+            if existing_user is not None:
+                purpose = OtpPurpose.LOGIN
+
         try:
             token = verify_otp(
                 ser.validated_data["phone"],
-                ser.validated_data["purpose"],
+                purpose,
                 ser.validated_data["code"],
             )
         except DomainError as exc:
@@ -111,15 +137,11 @@ class VerifyOtpView(APIView):
                 {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
             )
 
-        if ser.validated_data["purpose"] == OtpPurpose.SIGNUP:
-            from apps.accounts.models import User
+        # If they already existed in a SIGNUP flow, log them in.
+        if frontend_purpose == OtpPurpose.SIGNUP and existing_user is not None:
             from apps.accounts.services import register_successful_login, tokens_for_user
-            from apps.otp.services import normalize_phone
 
-            phone = normalize_phone(ser.validated_data["phone"])
-            existing_user = User.objects.filter(phone=phone, is_active=True).first()
-            if existing_user is not None:
-                register_successful_login(existing_user)
-                return Response({"login": True, **tokens_for_user(existing_user)})
+            register_successful_login(existing_user)
+            return Response({"login": True, **tokens_for_user(existing_user)})
 
         return Response({"verified": True, "token": token})
