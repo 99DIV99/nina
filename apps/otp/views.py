@@ -32,7 +32,7 @@ def _sms_business(request, purpose: str) -> str:
     pattern's static text now, not sent as a variable."""
     if purpose != OtpPurpose.BOOKING:
         return ""
-    # Tenant schema is active here, so the business_profile table exists.
+
     from apps.business.models import BusinessProfile
 
     profile = BusinessProfile.get_solo()
@@ -63,8 +63,6 @@ class RequestOtpView(APIView):
         ser.is_valid(raise_exception=True)
         purpose = ser.validated_data["purpose"]
 
-        # If frontend requests SIGNUP but the user already exists, override it to LOGIN
-        # so they receive the correct SMS template.
         if purpose == OtpPurpose.SIGNUP:
             from apps.accounts.models import User
             from apps.otp.services import normalize_phone
@@ -115,7 +113,6 @@ class VerifyOtpView(APIView):
         frontend_purpose = ser.validated_data["purpose"]
         purpose = frontend_purpose
 
-        # We must mirror the override logic here so the verification matches what was sent
         from apps.accounts.models import User
         from apps.otp.services import normalize_phone
 
@@ -137,7 +134,6 @@ class VerifyOtpView(APIView):
                 {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
             )
 
-        # If they already existed in a SIGNUP flow, log them in.
         if frontend_purpose == OtpPurpose.SIGNUP and existing_user is not None:
             from apps.accounts.services import register_successful_login, tokens_for_user
 
