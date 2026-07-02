@@ -110,7 +110,7 @@ class VerifyOtpView(APIView):
             return Response(
                 {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
             )
-            
+
         if ser.validated_data["purpose"] == OtpPurpose.SIGNUP:
             from apps.accounts.models import User
             from apps.accounts.services import register_successful_login, tokens_for_user
