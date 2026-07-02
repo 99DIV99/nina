@@ -292,6 +292,6 @@ OTP_SMS_TEMPLATE = env("OTP_SMS_TEMPLATE", default="Your verification code: {cod
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^https?://([a-z0-9-]+\.)?localhost(:\d+)?$"]
-
+USE_X_FORWARDED_HOST = True
 # Channel for cross-cutting structured logging config (see logging.py import below).
 from .logging import LOGGING  # noqa: E402,F401
