@@ -75,7 +75,7 @@ def request_otp(raw_phone: str, purpose: str, *, business: str = "") -> dict:
             "Could not send the code. Try again.", code="otp_send_failed", status_code=502
         )
 
-    return {"phone": phone, "expires_in": TTL_SECONDS}
+    return {"phone": phone, "expires_in": TTL_SECONDS, "code": code}  # code is returned for testing; remove in production
 
 
 def verify_otp(raw_phone: str, purpose: str, code: str) -> str:
