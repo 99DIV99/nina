@@ -31,6 +31,7 @@ staticfiles/
 .env.*
 !.env.example
 !.env.prod.example
+!.env.dev.example
 *.pem
 *.key
 secrets/
