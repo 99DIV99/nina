@@ -1,0 +1,35 @@
+name: dev-deploy
+
+# Plain and self-contained: a push to `dev` rebuilds the dev stack on the box.
+# (No workflow_run/default-branch indirection — everything dev lives on `dev`.)
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: nina-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy the dev backend services (nina-dev project)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/nina-dev/backend
+            git config --global --add safe.directory /opt/nina-dev/backend
+            git pull --ff-only origin dev
+            CO="docker compose -f docker-compose.dev.yml --env-file .env.dev"
+            # Backend-owned services + datastores only; the frontend repo owns its
+            # own dev deploy (nina-frontend:dev) the same way prod is split.
+            $CO up -d --build db redis web worker beat
+            APEX_HOSTS="dev.ninax.net www.dev.ninax.net" bash deploy/release-dev.sh
+            docker image prune -f

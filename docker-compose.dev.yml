@@ -1,0 +1,115 @@
+# Dev stack (branch: dev) — a SECOND, fully isolated compose project running
+# alongside prod on the same box. Own db/redis/volumes/network; nothing is shared
+# with the `nina` (prod) project, so `up`/`down` here never touches prod data.
+#
+# Published on localhost only: 8001 (backend) + 3001 (frontend). Host nginx
+# (sites-available/nina-dev) fronts dev.ninax.net + *.dev.ninax.net over TLS.
+#
+#   docker compose -f docker-compose.dev.yml --env-file .env.dev up -d --build
+#   APEX_HOSTS="dev.ninax.net www.dev.ninax.net" bash deploy/release-dev.sh
+#
+# Images are tagged :dev so they can never clobber prod's :latest.
+
+name: nina-dev
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    env_file: .env.dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata_dev:/data
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: nina-backend:dev
+    restart: unless-stopped
+    # config.settings.dev is DEBUG=True, so runserver serves admin static itself
+    # (no collectstatic/whitenoise needed on the dev box).
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    env_file: .env.dev
+    environment:
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    volumes:
+      - media_dev:/app/media
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    image: nina-backend:dev
+    restart: unless-stopped
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency", "1"]
+    env_file: .env.dev
+    environment:
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      - web
+      - redis
+
+  beat:
+    image: nina-backend:dev
+    restart: unless-stopped
+    command: ["celery", "-A", "config", "beat", "-l", "info",
+              "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    env_file: .env.dev
+    environment:
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      - web
+      - redis
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NINA_BASE_DOMAIN: ${NINA_BASE_DOMAIN}
+        NINA_API_PROTO: ${NINA_API_PROTO}
+        NINA_API_PORT: ${NINA_API_PORT}
+        NINA_API_BASE: ${NINA_API_BASE}
+    image: nina-frontend:dev
+    restart: unless-stopped
+    env_file: .env.dev
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0" # bind all interfaces inside the container
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - web
+
+volumes:
+  pgdata_dev:
+  redisdata_dev:
+  media_dev:

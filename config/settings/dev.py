@@ -13,3 +13,16 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=True)
 
 INTERNAL_IPS = ["127.0.0.1"]
+
+# --- Deployed dev box (behind the nina-dev nginx that terminates TLS) ---
+# Harmless on a laptop: nothing sets X-Forwarded-Proto there, so scheme stays http.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Trust the dev apex + tenant subdomains for admin CSRF over HTTPS.
+_base = env("BASE_DOMAIN", default="localhost")
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{_base}",
+    f"https://*.{_base}",
+    f"http://{_base}",
+    f"http://*.{_base}",
+]

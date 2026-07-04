@@ -1,0 +1,85 @@
+# Host nginx for the NINA DEV environment. Install to
+# /etc/nginx/sites-available/nina-dev and symlink into sites-enabled.
+# Mirrors the prod `nina` site but for dev.ninax.net, fronting the dev compose
+# project's localhost ports (8001 backend, 3001 frontend).
+#
+# Requires the dev wildcard cert first:
+#   certbot certonly --dns-cloudflare \
+#     --dns-cloudflare-credentials /root/.secrets/cloudflare.ini \
+#     -d dev.ninax.net -d '*.dev.ninax.net'
+
+upstream nina_backend_dev  { server 127.0.0.1:8001; }
+upstream nina_frontend_dev { server 127.0.0.1:3001; }
+
+# ===== Django admin console — ONLY on admin.dev.ninax.net =====
+server {
+    listen 80;
+    listen [::]:80;
+    server_name admin.dev.ninax.net;
+    return 301 https://$host$request_uri;
+}
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name admin.dev.ninax.net;
+
+    ssl_certificate     /etc/letsencrypt/live/dev.ninax.net/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dev.ninax.net/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    client_max_body_size 25m;
+
+    location = / { return 301 /admin/; }
+    location / {
+        proxy_pass http://nina_backend_dev;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+}
+
+# ===== HTTP -> HTTPS (dev apex + all other subdomains) =====
+server {
+    listen 80;
+    listen [::]:80;
+    server_name dev.ninax.net *.dev.ninax.net;
+    return 301 https://$host$request_uri;
+}
+
+# ===== dev apex + tenant subdomains + dash — NO Django admin here =====
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name dev.ninax.net *.dev.ninax.net;
+
+    ssl_certificate     /etc/letsencrypt/live/dev.ninax.net/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dev.ninax.net/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    client_max_body_size 25m;
+
+    # Django admin lives only on admin.dev.ninax.net.
+    location ^~ /admin { return 404; }
+
+    location ~ ^/(api|static|media|healthz|readyz)(/|$) {
+        proxy_pass http://nina_backend_dev;
+        proxy_set_header Host              $host;   # tenant resolution depends on this
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+    location / {
+        proxy_pass http://nina_frontend_dev;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_redirect off;
+    }
+}
