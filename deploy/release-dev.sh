@@ -12,7 +12,11 @@ echo "==> migrate shared schema"
 $COMPOSE run --rm web python manage.py migrate_schemas --shared
 
 echo "==> bootstrap public tenant + domains (dev hosts)"
-$COMPOSE run --rm web python manage.py bootstrap_public --hosts "${APEX_HOSTS:-dev.ninax.net www.dev.ninax.net}"
+# NOTE: --hosts is nargs="*"; the expansion is intentionally UNQUOTED so each
+# host becomes its own arg. Quoting it stores one bogus "a b c" domain that
+# matches no request (django-tenants then 404s every route).
+# shellcheck disable=SC2086
+$COMPOSE run --rm web python manage.py bootstrap_public --hosts ${APEX_HOSTS:-dev.ninax.net www.dev.ninax.net auth.dev.ninax.net admin.dev.ninax.net}
 
 echo "==> migrate all tenant schemas"
 $COMPOSE run --rm web python manage.py migrate_schemas

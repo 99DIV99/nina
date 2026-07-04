@@ -31,5 +31,5 @@ jobs:
             # Backend-owned services + datastores only; the frontend repo owns its
             # own dev deploy (nina-frontend:dev) the same way prod is split.
             $CO up -d --build db redis web worker beat
-            APEX_HOSTS="dev.ninax.net www.dev.ninax.net" bash deploy/release-dev.sh
+            APEX_HOSTS="dev.ninax.net www.dev.ninax.net auth.dev.ninax.net admin.dev.ninax.net" bash deploy/release-dev.sh
             docker image prune -f
