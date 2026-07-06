@@ -97,11 +97,14 @@ class BotViewSet(viewsets.ModelViewSet):
     def telegram_connect(self, request, pk=None):
         """Opt-in: a business supplies its own @BotFather token; we register the
         per-tenant webhook with Telegram. Gated by bots.manage (+ has_bots)."""
+        import logging
         from apps.bots.telegram import set_webhook
 
+        logger = logging.getLogger("nina.bots.telegram")
         bot = self.get_object()
         token = (request.data.get("telegram_bot_token") or "").strip()
         if not token:
+            logger.warning("telegram_connect_no_token", extra={"bot_id": bot.pk})
             return Response(
                 {"error": {"code": "token_required", "message": "telegram_bot_token required"}},
                 status=400,
@@ -114,6 +117,14 @@ class BotViewSet(viewsets.ModelViewSet):
         registered = False
         if request.data.get("register", True):
             registered = set_webhook(token, webhook_url, bot.telegram_webhook_secret)
+            logger.info(
+                "telegram_connect_attempt",
+                extra={
+                    "bot_id": bot.pk,
+                    "webhook_url": webhook_url,
+                    "registered": registered,
+                },
+            )
         return Response(
             {
                 "webhook_url": webhook_url,

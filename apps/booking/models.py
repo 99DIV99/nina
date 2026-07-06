@@ -66,6 +66,7 @@ class Customer(models.Model):
     email = models.EmailField(blank=True, db_index=True)
     phone = models.CharField(max_length=40, blank=True)
     notes = models.TextField(blank=True)
+    telegram_user_id = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

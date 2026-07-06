@@ -64,6 +64,7 @@ def create_pending_booking(
     customer_name: str,
     customer_email: str = "",
     customer_phone: str = "",
+    telegram_user_id: str = "",
 ) -> dict:
     """Create a PENDING appointment for human review. Reuses the same engine, so
     double-booking is impossible even via a bot."""
@@ -81,8 +82,12 @@ def create_pending_booking(
         customer = Customer.objects.filter(phone=customer_phone).first()
     if customer is None:
         customer = Customer.objects.create(
-            name=customer_name, email=customer_email, phone=customer_phone
+            name=customer_name, email=customer_email, phone=customer_phone, telegram_user_id=telegram_user_id or None
         )
+    elif telegram_user_id and not customer.telegram_user_id:
+        # Update existing customer with telegram_user_id if not already set
+        customer.telegram_user_id = telegram_user_id
+        customer.save(update_fields=["telegram_user_id"])
 
     profile = BusinessProfile.get_solo()
     appt = booking_services.create_appointment(

@@ -41,8 +41,8 @@ def parse_update(payload: dict) -> dict | None:
     """Extract a normalised dict from a Telegram update.
 
     Handles two update types:
-    - ``message`` / ``edited_message``: text from the user → {chat_id, text, from_name}
-    - ``callback_query``: button press → {chat_id, callback_data, from_name, message_id}
+    - ``message`` / ``edited_message``: text from the user → {chat_id, user_id, text, from_name}
+    - ``callback_query``: button press → {chat_id, user_id, callback_data, from_name, message_id}
 
     Returns None for updates that carry neither (stickers, channel posts, etc.).
     """
@@ -56,6 +56,7 @@ def parse_update(payload: dict) -> dict | None:
         )
         return {
             "chat_id": str(chat.get("id", "")),
+            "user_id": str(sender.get("id", "")),
             "callback_data": cq.get("data", ""),
             "from_name": name,
             "message_id": cq.get("message", {}).get("message_id"),
@@ -72,7 +73,12 @@ def parse_update(payload: dict) -> dict | None:
         return None
     sender = message.get("from") or {}
     name = " ".join(filter(None, [sender.get("first_name"), sender.get("last_name")])) or "Guest"
-    return {"chat_id": str(chat["id"]), "text": text, "from_name": name}
+    return {
+        "chat_id": str(chat["id"]),
+        "user_id": str(sender.get("id", "")),
+        "text": text,
+        "from_name": name,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +156,37 @@ def set_webhook(token: str, webhook_url: str, secret: str, *, timeout: int = 10)
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            return 200 <= resp.status < 300
+            body = json.loads(resp.read().decode("utf-8"))
+            if 200 <= resp.status < 300:
+                if not body.get("ok", True):
+                    logger.error(
+                        "telegram_setwebhook_rejected",
+                        extra={
+                            "description": body.get("description", "Unknown error"),
+                            "error_code": body.get("error_code"),
+                            "parameters": body.get("parameters"),
+                        },
+                    )
+                    return False
+                logger.info("telegram_setwebhook_success", extra={"url": webhook_url})
+                return True
+            else:
+                logger.error(
+                    "telegram_setwebhook_http_error",
+                    extra={"status": resp.status, "body": body},
+                )
+                return False
+    except urllib.error.HTTPError as exc:
+        # Telegram returned an HTTP error (e.g., 401 for invalid token)
+        try:
+            body = json.loads(exc.read().decode("utf-8"))
+        except Exception:
+            body = str(exc)
+        logger.error(
+            "telegram_setwebhook_http_error",
+            extra={"status": exc.code, "body": body},
+        )
+        return False
     except Exception as exc:  # noqa: BLE001
-        logger.error("telegram_setwebhook_failed", extra={"error": str(exc)[:200]})
+        logger.error("telegram_setwebhook_exception", extra={"error": str(exc), "type": type(exc).__name__})
         return False

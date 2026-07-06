@@ -27,7 +27,7 @@ LOGGING = {
         "level": _LEVEL,
     },
     "loggers": {
-        "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "nina": {"handlers": ["console"], "level": _LEVEL, "propagate": False},
     },
 }

@@ -74,6 +74,7 @@ def handle_message(bot, conversation: Conversation, text: str) -> dict:
                 start_at=start_at,
                 customer_name=state.get("name", "Guest"),
                 customer_email=state["email"],
+                telegram_user_id=conversation.external_id if conversation.channel == "telegram" else "",
             )
         except Exception as exc:  # noqa: BLE001
             return _reply(conversation, f"I couldn't hold that slot: {exc}")
