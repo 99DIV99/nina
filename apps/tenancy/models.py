@@ -14,6 +14,12 @@ class BusinessType(models.TextChoices):
     BARBER = "barber", "Barber / Salon"
     CLINIC = "clinic", "Clinic"
     GENERAL = "general", "General"
+    BEAUTY = "beauty", "Beauty Salon"
+    MENTOR = "mentor", "Mentoring / Coaching"
+    ADVISOR = "advisor", "Consulting / Advisory"
+    DOCTOR = "doctor", "Doctor / Medical Practice"
+    MECHANIC = "mechanic", "Mechanic / Auto Repair"
+    PHOTOGRAPHER = "photographer", "Photographer / Studio"
 
 
 class PlanTier(models.TextChoices):
@@ -66,14 +72,21 @@ class Business(TenantMixin):
         return f"{self.name} ({self.schema_name})"
 
     def apply_type_defaults(self) -> None:
-        """Seed feature flags + experience from the chosen business_type (B3)."""
+        """Seed feature flags + experience from the chosen business_type (B3).
+
+        Bots are enabled for ALL business types (a core feature). Accounting and
+        records remain type-specific."""
         self.experience = self.business_type
+        self.has_bots = True
         if self.business_type == BusinessType.CLINIC:
             self.has_accounting = True
             self.has_records = True
         elif self.business_type == BusinessType.BARBER:
             self.has_accounting = True
             self.has_records = False
+        elif self.business_type == BusinessType.DOCTOR:
+            self.has_accounting = True
+            self.has_records = True
         else:
             self.has_accounting = False
             self.has_records = False
