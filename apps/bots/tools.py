@@ -77,6 +77,8 @@ def create_pending_booking(
     customer = None
     if customer_email:
         customer = Customer.objects.filter(email__iexact=customer_email).first()
+    if customer is None and customer_phone:
+        customer = Customer.objects.filter(phone=customer_phone).first()
     if customer is None:
         customer = Customer.objects.create(
             name=customer_name, email=customer_email, phone=customer_phone

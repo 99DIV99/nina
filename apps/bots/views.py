@@ -283,8 +283,8 @@ class TelegramWebhookView(APIView):
     Inbound Telegram updates for THIS tenant (host-routed). Verified by the
     per-bot webhook secret echoed in X-Telegram-Bot-Api-Secret-Token, matched
     only within the current schema -> a bot can never receive another tenant's
-    traffic. Routes text through the same pipeline as the web widget and replies
-    via the Telegram Bot API.
+    traffic. Routes callbacks/text through the button-based flow
+    (apps.bots.telegram_flow) and replies via the Telegram Bot API.
     """
 
     permission_classes = [AllowAny]
@@ -297,7 +297,8 @@ class TelegramWebhookView(APIView):
         responses={200: inline_serializer("WebhookAck", {"ok": serializers.BooleanField()})},
     )
     def post(self, request):
-        from apps.bots.telegram import parse_update, send_message
+        from apps.bots.telegram import parse_update
+        from apps.bots.telegram_flow import handle_update
 
         secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
         bot = (
@@ -318,11 +319,9 @@ class TelegramWebhookView(APIView):
             bot=bot,
             channel="telegram",
             external_id=parsed["chat_id"],
-            defaults={"state": {"name": parsed["from_name"]}},
+            defaults={"state": {"step": "MENU", "name": parsed["from_name"]}},
         )
-        text = parsed["text"][:1000].strip()
-        result = handle_message(bot, conversation, text)
-        send_message(bot.telegram_bot_token, parsed["chat_id"], result["reply"])
+        handle_update(bot, conversation, parsed, request.data)
         return Response({"ok": True})
 
 
