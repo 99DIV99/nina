@@ -159,21 +159,26 @@ def set_webhook(token: str, webhook_url: str, secret: str, *, timeout: int = 10)
             body = json.loads(resp.read().decode("utf-8"))
             if 200 <= resp.status < 300:
                 if not body.get("ok", True):
+                    error_details = {
+                        "description": body.get("description", "Unknown error"),
+                        "error_code": body.get("error_code"),
+                        "parameters": body.get("parameters"),
+                    }
+                    print(f"[Telegram webhook rejected] {error_details}")  # Fallback for visibility
                     logger.error(
                         "telegram_setwebhook_rejected",
-                        extra={
-                            "description": body.get("description", "Unknown error"),
-                            "error_code": body.get("error_code"),
-                            "parameters": body.get("parameters"),
-                        },
+                        extra=error_details,
                     )
                     return False
                 logger.info("telegram_setwebhook_success", extra={"url": webhook_url})
+                print(f"[Telegram webhook success] {webhook_url}")  # Fallback for visibility
                 return True
             else:
+                error_details = {"status": resp.status, "body": body}
+                print(f"[Telegram webhook HTTP error] {error_details}")
                 logger.error(
                     "telegram_setwebhook_http_error",
-                    extra={"status": resp.status, "body": body},
+                    extra=error_details,
                 )
                 return False
     except urllib.error.HTTPError as exc:
@@ -182,11 +187,15 @@ def set_webhook(token: str, webhook_url: str, secret: str, *, timeout: int = 10)
             body = json.loads(exc.read().decode("utf-8"))
         except Exception:
             body = str(exc)
+        error_details = {"status": exc.code, "body": body}
+        print(f"[Telegram webhook HTTP error] {error_details}")
         logger.error(
             "telegram_setwebhook_http_error",
-            extra={"status": exc.code, "body": body},
+            extra=error_details,
         )
         return False
     except Exception as exc:  # noqa: BLE001
-        logger.error("telegram_setwebhook_exception", extra={"error": str(exc), "type": type(exc).__name__})
+        error_details = {"error": str(exc), "type": type(exc).__name__}
+        print(f"[Telegram webhook exception] {error_details}")
+        logger.error("telegram_setwebhook_exception", extra=error_details)
         return False
