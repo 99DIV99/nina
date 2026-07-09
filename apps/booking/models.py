@@ -126,6 +126,20 @@ class AppointmentStatus(models.TextChoices):
     NO_SHOW = "no_show", "No-show"
 
 
+class PaymentStatus(models.TextChoices):
+    UNPAID = "unpaid", "Unpaid"
+    PARTIAL = "partial", "Partial"
+    PAID = "paid", "Paid"
+    REFUNDED = "refunded", "Refunded"
+
+
+class PaymentMethod(models.TextChoices):
+    CASH = "cash", "Cash"
+    CARD = "card", "Card"
+    TRANSFER = "transfer", "Bank Transfer"
+    ONLINE = "online", "Online Payment"
+
+
 # Statuses that occupy a slot (block other bookings).
 ACTIVE_STATUSES = [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]
 
@@ -149,6 +163,20 @@ class Appointment(models.Model):
     # Provenance: who created it (staff panel, public page, or a bot).
     source = models.CharField(max_length=20, default="panel")
     notes = models.TextField(blank=True)
+
+    # Payment tracking
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.UNPAID
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PaymentMethod.choices,
+        blank=True
+    )
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    payment_notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
