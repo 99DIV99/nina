@@ -7,6 +7,8 @@ from drf_spectacular.utils import (
     extend_schema_view,
     inline_serializer,
 )
+from datetime import date
+
 from rest_framework import serializers, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -184,6 +186,101 @@ class LedgerView(_CSVListMixin, APIView):
         return Response(rows)
 
 
+class _ReportView(APIView):
+    """Base for date-range accounting reports with JSON or CSV representations."""
+
+    permission_classes = [HasPermission]
+    required_permission = P_ACCOUNTING_VIEW
+    renderer_classes = [CSVRenderer, *APIView.renderer_classes]
+    csv_filename = "report"
+    rows_key = None
+
+    def get_dates(self, request):
+        raw_from = request.query_params.get("date_from")
+        raw_to = request.query_params.get("date_to")
+        if not raw_from or not raw_to:
+            return None, Response(
+                {"error": {"code": "range_required", "message": "date_from and date_to required"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            date_from, date_to = date.fromisoformat(raw_from), date.fromisoformat(raw_to)
+        except ValueError:
+            return None, Response(
+                {"error": {"code": "invalid_date", "message": "Dates must use YYYY-MM-DD"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if date_from > date_to:
+            return None, Response(
+                {"error": {"code": "invalid_range", "message": "date_from must not be after date_to"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return (date_from, date_to), None
+
+    def get(self, request):
+        dates, error = self.get_dates(request)
+        if error:
+            return error
+        report = self.build(*dates)
+        if request.accepted_renderer.format == "csv":
+            rows = report[self.rows_key] if self.rows_key else [report]
+            return Response(rows)
+        return Response(report)
+
+
+class TrendReportView(_ReportView):
+    entry_type = None
+    interval = None
+
+    def build(self, date_from, date_to):
+        return services.trend_report(
+            entry_type=self.entry_type, interval=self.interval, date_from=date_from, date_to=date_to
+        )
+
+    @property
+    def rows_key(self):
+        return self.entry_type
+
+
+class PnLReportView(_ReportView):
+    csv_filename = "profit-and-loss"
+
+    def build(self, date_from, date_to):
+        return services.period_report(date_from=date_from, date_to=date_to)
+
+
+class StaffReportView(_ReportView):
+    csv_filename = "staff-performance"
+    rows_key = "staff"
+
+    def build(self, date_from, date_to):
+        return services.staff_report(date_from=date_from, date_to=date_to)
+
+
+class ServiceReportView(_ReportView):
+    csv_filename = "service-profitability"
+    rows_key = "services"
+
+    def build(self, date_from, date_to):
+        return services.service_report(date_from=date_from, date_to=date_to)
+
+
+class OutstandingInvoicesView(_ReportView):
+    csv_filename = "outstanding-invoices"
+    rows_key = "invoices"
+
+    def build(self, date_from, date_to):
+        return services.outstanding_invoices(date_from=date_from, date_to=date_to)
+
+
+class CashFlowView(_ReportView):
+    csv_filename = "cash-flow"
+    rows_key = "cash_flow"
+
+    def build(self, date_from, date_to):
+        return services.cash_flow_report(date_from=date_from, date_to=date_to)
+
+
 @extend_schema(
     summary="Income / expense / net for a date range",
     parameters=[
@@ -208,16 +305,7 @@ class LedgerView(_CSVListMixin, APIView):
         400: ErrorResponseSerializer,
     },
 )
-class ReportView(APIView):
-    permission_classes = [HasPermission]
-    required_permission = P_ACCOUNTING_VIEW
+class ReportView(PnLReportView):
+    """Compatibility endpoint for the original period profit-and-loss report."""
 
-    def get(self, request):
-        date_from = request.query_params.get("date_from")
-        date_to = request.query_params.get("date_to")
-        if not date_from or not date_to:
-            return Response(
-                {"error": {"code": "range_required", "message": "date_from and date_to required"}},
-                status=400,
-            )
-        return Response(services.period_report(date_from=date_from, date_to=date_to))
+    csv_filename = "period-report"
