@@ -22,6 +22,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "booking_lead_minutes",
             "max_advance_days",
             "cancellation_window_hours",
+            "auto_generate_invoices",
             "require_phone_otp",
             "updated_at",
         )

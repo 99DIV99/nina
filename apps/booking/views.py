@@ -228,6 +228,11 @@ class AppointmentViewSet(_PermViewSet):
         serializer = AppointmentPaymentSerializer(appointment, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # The completion signal handles the opposite order (paid first, then
+        # completed). This handles completing first, then recording payment.
+        from apps.accounting.services import record_income_for_appointment
+
+        record_income_for_appointment(appointment)
         return Response(serializer.data)
 
     def _transition(self, fn):

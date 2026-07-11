@@ -18,7 +18,6 @@ from apps.accounting.models import Expense, ExpenseCategory, Income, IncomeCateg
 from apps.accounting.renderers import CSVRenderer
 from apps.accounting.serializers import (
     ExpenseCategorySerializer,
-    ExpenseCreateSerializer,
     ExpenseSerializer,
     IncomeCategorySerializer,
     IncomeSerializer,
@@ -58,28 +57,21 @@ class _CSVListMixin:
 
 @extend_schema_view(
     list=extend_schema(
-        summary="List transactions (filter by type)",
-        parameters=[
-            OpenApiParameter(
-                "type", str, description="Filter by transaction type, e.g. income|expense."
-            )
-        ],
-    ),
-    create=extend_schema(
-        summary="Record a manual expense (income is automatic)",
-        request=ExpenseCreateSerializer,
-        responses={201: TransactionSerializer, 400: ErrorResponseSerializer},
+        summary="List legacy transactions (read-only; use income and expense endpoints for new data)",
+        parameters=[OpenApiParameter("type", str, description="Filter by legacy transaction type.")],
     ),
 )
-class TransactionViewSet(viewsets.ModelViewSet):
+class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
+    """Temporary read-only access while existing Transaction data is retired."""
+
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
     permission_classes = [HasPermission]
-    http_method_names = ["get", "post", "delete", "head", "options"]
+    http_method_names = ["get", "head", "options"]
 
     @property
     def required_permission(self):
-        return P_ACCOUNTING_VIEW if self.request.method == "GET" else P_ACCOUNTING_MANAGE
+        return P_ACCOUNTING_VIEW
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -87,14 +79,6 @@ class TransactionViewSet(viewsets.ModelViewSet):
         if t:
             qs = qs.filter(type=t)
         return qs
-
-    def create(self, request, *args, **kwargs):
-        # Only manual EXPENSE creation is allowed via the API; income is automatic.
-        ser = ExpenseCreateSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-        txn = services.add_expense(**ser.validated_data)
-        return Response(TransactionSerializer(txn).data, status=status.HTTP_201_CREATED)
-
 
 class InvoiceViewSet(_AccountingViewSet):
     queryset = Invoice.objects.all()

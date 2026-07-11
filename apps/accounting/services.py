@@ -3,12 +3,13 @@
 import logging
 from collections import defaultdict
 from decimal import Decimal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.db import IntegrityError, connection
 from django.db.models import CharField, F, Sum, Value
 from django.db.models.functions import TruncMonth, TruncWeek
 
-from apps.accounting.models import Expense, Income, Invoice, Transaction, TransactionType
+from apps.accounting.models import Expense, Income, Invoice, InvoiceStatus, PaymentStatus as InvoicePaymentStatus
 
 logger = logging.getLogger("nina.accounting")
 
@@ -19,37 +20,61 @@ def _accounting_enabled() -> bool:
     return bool(tenant and getattr(tenant, "has_accounting", False))
 
 
-def record_income_for_appointment(appointment) -> Transaction | None:
-    """Create one income Transaction for a completed appointment. Idempotent:
-    the unique constraint on source_appointment_id prevents double-counting even
-    if the signal fires twice (e.g. retried task)."""
+def record_income_for_appointment(appointment) -> Income | None:
+    """Create an Income only for a completed, fully-paid appointment.
+
+    ``source_appointment_id`` makes the operation idempotent, so the completion
+    signal and payment endpoint can both safely attempt to record the income.
+    """
+    from apps.booking.models import AppointmentStatus, PaymentMethod, PaymentStatus
+    from apps.business.models import BusinessProfile
+
     if not _accounting_enabled():
         return None
+    if appointment.status != AppointmentStatus.COMPLETED:
+        return None
+    if appointment.payment_status != PaymentStatus.PAID:
+        return None
+
     try:
-        txn, created = Transaction.objects.get_or_create(
+        profile = BusinessProfile.get_solo()
+        business_timezone = ZoneInfo(profile.timezone)
+    except ZoneInfoNotFoundError:
+        business_timezone = ZoneInfo("UTC")
+
+    try:
+        income, created = Income.objects.get_or_create(
             source_appointment_id=appointment.id,
             defaults={
-                "type": TransactionType.INCOME,
-                "amount": appointment.price,
-                "category": "service",
+                "amount": appointment.payment_amount if appointment.payment_amount is not None else appointment.price,
                 "description": f"Appointment #{appointment.id}",
-                "occurred_on": appointment.start_at.date(),
+                "occurred_on": appointment.start_at.astimezone(business_timezone).date(),
+                "payment_method": appointment.payment_method or PaymentMethod.CASH,
             },
         )
     except IntegrityError:
-        return None
+        return Income.objects.filter(source_appointment_id=appointment.id).first()
     if created:
         logger.info("auto_income", extra={"target": f"appointment:{appointment.id}"})
-    return txn
+    if profile.auto_generate_invoices:
+        _create_invoice_for_paid_appointment(appointment, income, occurred_on=income.occurred_on)
+    return income
 
 
-def add_expense(*, amount, category, description, occurred_on) -> Transaction:
-    return Transaction.objects.create(
-        type=TransactionType.EXPENSE,
-        amount=amount,
-        category=category,
-        description=description,
-        occurred_on=occurred_on,
+def _create_invoice_for_paid_appointment(appointment, income, *, occurred_on):
+    """Create the optional paid invoice once; Income remains the source of truth."""
+    if Invoice.objects.filter(appointment_id=appointment.id).exists():
+        return
+    Invoice.objects.create(
+        number=next_invoice_number(),
+        customer_id=appointment.customer_id,
+        appointment_id=appointment.id,
+        amount=income.amount,
+        status=InvoiceStatus.PAID,
+        issued_on=occurred_on,
+        payment_status=InvoicePaymentStatus.PAID,
+        paid_amount=income.amount,
+        paid_on=occurred_on,
     )
 
 

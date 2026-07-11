@@ -81,7 +81,16 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("end_at", "status", "created_at", "updated_at")
+        read_only_fields = (
+            "end_at",
+            "status",
+            "payment_status",
+            "payment_method",
+            "payment_amount",
+            "payment_notes",
+            "created_at",
+            "updated_at",
+        )
 
 
 class AppointmentCreateSerializer(serializers.Serializer):
@@ -108,6 +117,22 @@ class AppointmentPaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = ("payment_status", "payment_method", "payment_amount", "payment_notes")
+
+    def validate(self, attrs):
+        payment_status = attrs.get("payment_status", getattr(self.instance, "payment_status", None))
+        payment_amount = attrs.get("payment_amount", getattr(self.instance, "payment_amount", None))
+        payment_method = attrs.get("payment_method", getattr(self.instance, "payment_method", ""))
+        if payment_amount is not None and payment_amount < 0:
+            raise serializers.ValidationError({"payment_amount": "Payment amount cannot be negative."})
+        if payment_status == "paid":
+            errors = {}
+            if payment_amount is None:
+                errors["payment_amount"] = "A paid appointment requires a payment amount."
+            if not payment_method:
+                errors["payment_method"] = "A paid appointment requires a payment method."
+            if errors:
+                raise serializers.ValidationError(errors)
+        return attrs
 
 
 class AvailabilityQuerySerializer(serializers.Serializer):

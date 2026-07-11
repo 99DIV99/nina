@@ -58,6 +58,8 @@ class BusinessProfile(models.Model):
     booking_lead_minutes = models.PositiveIntegerField(default=60)
     max_advance_days = models.PositiveIntegerField(default=60)
     cancellation_window_hours = models.PositiveIntegerField(default=24)
+    # When enabled, a paid completed appointment creates one paid invoice.
+    auto_generate_invoices = models.BooleanField(default=False)
 
     # Require the customer to verify their phone (SMS OTP) before a public booking.
     # Secure by default; a business can opt out in Settings.
