@@ -74,6 +74,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "price",
             "source",
             "notes",
+            "payment_status",
+            "payment_method",
+            "payment_amount",
+            "payment_notes",
             "created_at",
             "updated_at",
         )
@@ -98,6 +102,12 @@ class AppointmentCreateSerializer(serializers.Serializer):
 class RescheduleSerializer(serializers.Serializer):
     start_at = serializers.DateTimeField()
     override_availability = serializers.BooleanField(required=False, default=False)
+
+
+class AppointmentPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Appointment
+        fields = ("payment_status", "payment_method", "payment_amount", "payment_notes")
 
 
 class AvailabilityQuerySerializer(serializers.Serializer):

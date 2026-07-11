@@ -3,8 +3,9 @@
 import logging
 
 from django.db import IntegrityError, connection
+from django.db.models import CharField, F, Value
 
-from apps.accounting.models import Invoice, Transaction, TransactionType
+from apps.accounting.models import Expense, Income, Invoice, Transaction, TransactionType
 
 logger = logging.getLogger("nina.accounting")
 
@@ -62,6 +63,39 @@ def period_report(*, date_from, date_to) -> dict:
         "expense": str(expense),
         "net": str(income - expense),
     }
+
+
+def get_ledger(*, date_from=None, date_to=None, type_filter="all"):
+    """Return a date-descending, unified view of Income and Expense rows."""
+    income = Income.objects.all()
+    expense = Expense.objects.all()
+    if date_from:
+        income = income.filter(occurred_on__gte=date_from)
+        expense = expense.filter(occurred_on__gte=date_from)
+    if date_to:
+        income = income.filter(occurred_on__lte=date_to)
+        expense = expense.filter(occurred_on__lte=date_to)
+
+    income_rows = income.annotate(
+        type=Value("income", output_field=CharField()),
+        category_name=F("category__name"),
+        vendor=Value("", output_field=CharField()),
+    ).values(
+        "id", "occurred_on", "amount", "description", "type", "category_name", "payment_method", "vendor"
+    )
+    expense_rows = expense.annotate(
+        type=Value("expense", output_field=CharField()),
+        category_name=F("category__name"),
+        payment_method=Value("", output_field=CharField()),
+    ).values(
+        "id", "occurred_on", "amount", "description", "type", "category_name", "payment_method", "vendor"
+    )
+
+    if type_filter == "income":
+        return income_rows.order_by("-occurred_on", "-id")
+    if type_filter == "expense":
+        return expense_rows.order_by("-occurred_on", "-id")
+    return income_rows.union(expense_rows).order_by("-occurred_on", "-id")
 
 
 def next_invoice_number() -> str:

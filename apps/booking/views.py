@@ -26,6 +26,7 @@ from apps.booking.availability import generate_slots
 from apps.booking.models import Appointment, BusinessHours, Customer, Service, StaffMember, TimeOff
 from apps.booking.serializers import (
     AppointmentCreateSerializer,
+    AppointmentPaymentSerializer,
     AppointmentSerializer,
     AvailabilityQuerySerializer,
     BusinessHoursSerializer,
@@ -213,6 +214,21 @@ class AppointmentViewSet(_PermViewSet):
                 {"error": {"code": exc.code, "message": exc.message}}, status=exc.status_code
             )
         return Response(AppointmentSerializer(appt).data)
+
+    @extend_schema(
+        summary="Get or record appointment payment details",
+        request=AppointmentPaymentSerializer,
+        responses={200: AppointmentPaymentSerializer, 400: ErrorResponseSerializer},
+    )
+    @action(detail=True, methods=["get", "post"])
+    def payment(self, request, pk=None):
+        appointment = self.get_object()
+        if request.method == "GET":
+            return Response(AppointmentPaymentSerializer(appointment).data)
+        serializer = AppointmentPaymentSerializer(appointment, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
     def _transition(self, fn):
         appt = self.get_object()
