@@ -102,6 +102,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "status",
             "issued_on",
             "due_on",
+            "payment_status",
+            "paid_amount",
+            "paid_on",
             "created_at",
         )
         read_only_fields = ("number", "created_at")
