@@ -6,7 +6,7 @@ Multi-tenant booking platform. **Schema-per-tenant** on PostgreSQL via
 business; verticals (barber / clinic / general) differ only in the frontend, which
 mounts an experience from the backend's context payload.
 
-## Core principles (enforced, not aspirational)
+## Core principles
 
 - **Schema is the isolation boundary.** Tenant tables carry no `business_id`.
 - **Server-side authorization is absolute.** The client never asserts its tenant,
