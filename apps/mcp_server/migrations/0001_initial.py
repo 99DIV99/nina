@@ -47,9 +47,9 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "mcp_internal_token",
                 "indexes": [
-                    models.Index(fields=["token"]),
-                    models.Index(fields=["expires_at"]),
-                    models.Index(fields=["tenant", "user"]),
+                    models.Index(fields=["token"], name="mcp_token_idx"),
+                    models.Index(fields=["expires_at"], name="mcp_expires_idx"),
+                    models.Index(fields=["tenant", "user"], name="mcp_tenant_user_idx"),
                 ],
             },
         ),
@@ -100,9 +100,9 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "mcp_request_audit",
                 "indexes": [
-                    models.Index(fields=["timestamp"]),
-                    models.Index(fields=["tenant", "status"]),
-                    models.Index(fields=["tool_name"]),
+                    models.Index(fields=["timestamp"], name="mcp_audit_time_idx"),
+                    models.Index(fields=["tenant", "status"], name="mcp_audit_tenant_status_idx"),
+                    models.Index(fields=["tool_name"], name="mcp_audit_tool_idx"),
                 ],
             },
         ),
