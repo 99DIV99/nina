@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
 
-from apps.accounts.authorization import current_business, get_user_permissions
+from apps.accounts.authorization import current_business, effective_permissions
 from apps.accounts.models import Membership
 from apps.mcp_server.auth import generate_internal_token, validate_internal_token
 from apps.mcp_server.audit import log_auth_failure
@@ -136,7 +136,7 @@ class ChatView(APIView):
         user = request.user
 
         # Get user's permissions
-        permissions = get_user_permissions(user, business)
+        permissions = effective_permissions(request)
 
         # Generate internal MCP token (5 minutes)
         from apps.mcp_server.models import MCPInternalToken
@@ -226,8 +226,7 @@ class ChatToolsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        user = request.user
-        permissions = get_user_permissions(user, business)
+        permissions = effective_permissions(request)
 
         tools = tools_for_permissions(permissions)
 
