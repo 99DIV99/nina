@@ -5,7 +5,6 @@ This migration creates the MCPInternalToken and MCPRequestAudit models.
 from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
-import uuid
 
 
 class Migration(migrations.Migration):
@@ -23,10 +22,10 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False)),
                 ("token", models.CharField(db_index=True, max_length=64, unique=True)),
-                ("scopes", models.ArrayField(models.CharField(max_length=50), null=True)),
+                ("scopes", models.JSONField(default=list)),
                 ("expires_at", models.DateTimeField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("used_at", models.DateTimeField(null=True)),
+                ("used_at", models.DateTimeField(blank=True, null=True)),
                 ("is_revoked", models.BooleanField(default=False)),
                 (
                     "tenant",
@@ -46,10 +45,11 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "db_table": "mcp_internal_tokens",
+                "db_table": "mcp_internal_token",
                 "indexes": [
-                    models.Index(fields=["tenant", "expires_at"]),
-                    models.Index(fields=["created_at"]),
+                    models.Index(fields=["token"]),
+                    models.Index(fields=["expires_at"]),
+                    models.Index(fields=["tenant", "user"]),
                 ],
             },
         ),
@@ -57,16 +57,20 @@ class Migration(migrations.Migration):
             name="MCPRequestAudit",
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False)),
-                ("timestamp", models.DateTimeField(auto_now_add=True)),
+                ("timestamp", models.DateTimeField(auto_now_add=True, db_index=True)),
                 ("source", models.CharField(max_length=20)),
-                ("tool_name", models.CharField(max_length=100)),
-                ("resource_uri", models.CharField(max_length=255, null=True)),
+                ("tool_name", models.CharField(blank=True, max_length=100, null=True)),
+                ("resource_uri", models.CharField(blank=True, max_length=255, null=True)),
+                ("parameters", models.JSONField(blank=True, null=True)),
                 ("status", models.CharField(max_length=20)),
-                ("duration_ms", models.IntegerField(null=True)),
-                ("error_message", models.TextField(null=True)),
+                ("duration_ms", models.IntegerField(blank=True, null=True)),
+                ("error_message", models.TextField(blank=True, null=True)),
+                ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
+                ("user_agent", models.TextField(blank=True, null=True)),
                 (
                     "tenant",
                     models.ForeignKey(
+                        blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="mcp_audits",
@@ -76,18 +80,28 @@ class Migration(migrations.Migration):
                 (
                     "user",
                     models.ForeignKey(
+                        blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="mcp_audits",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
+                (
+                    "token",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="mcp_server.mcpinternaltoken",
+                    ),
+                ),
             ],
             options={
-                "db_table": "mcp_request_audits",
+                "db_table": "mcp_request_audit",
                 "indexes": [
-                    models.Index(fields=["tenant", "-timestamp"]),
-                    models.Index(fields=["user", "-timestamp"]),
+                    models.Index(fields=["timestamp"]),
+                    models.Index(fields=["tenant", "status"]),
                     models.Index(fields=["tool_name"]),
                 ],
             },
