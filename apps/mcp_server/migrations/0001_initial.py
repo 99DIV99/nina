@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("tenant", "0001_initial"),
+        ("tenancy", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="mcp_tokens",
-                        to="tenant.tenant",
+                        to="tenancy.business",
                     ),
                 ),
                 (
@@ -70,7 +70,7 @@ class Migration(migrations.Migration):
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="mcp_audits",
-                        to="tenant.tenant",
+                        to="tenancy.business",
                     ),
                 ),
                 (

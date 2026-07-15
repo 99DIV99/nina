@@ -17,7 +17,7 @@ class MCPInternalToken(models.Model):
     """
 
     token = models.CharField(max_length=64, unique=True, db_index=True)
-    tenant = models.ForeignKey("tenancy.Tenant", on_delete=models.CASCADE)
+    tenant = models.ForeignKey("tenancy.Business", on_delete=models.CASCADE)
     user = models.ForeignKey("accounts.User", on_delete=models.CASCADE)
     scopes = models.JSONField(default=list)  # List of permission strings
     expires_at = models.DateTimeField()
@@ -61,7 +61,7 @@ class MCPRequestAudit(models.Model):
     """Audit all MCP requests for security and debugging."""
 
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
-    tenant = models.ForeignKey("tenancy.Tenant", on_delete=models.SET_NULL, null=True)
+    tenant = models.ForeignKey("tenancy.Business", on_delete=models.SET_NULL, null=True)
     user = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True)
     token = models.ForeignKey(MCPInternalToken, on_delete=models.SET_NULL, null=True)
 
