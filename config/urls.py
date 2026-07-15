@@ -21,6 +21,7 @@ v1 = [
     path("public/", include("apps.booking.urls_public")),
     path("accounting/", include("apps.accounting.urls")),
     path("bots/", include("apps.bots.urls")),
+    path("mcp/", include("apps.mcp_server.urls")),
 ]
 
 urlpatterns = [

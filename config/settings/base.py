@@ -75,6 +75,7 @@ TENANT_APPS = [
     "apps.bots",  # per-tenant booking bots
     "apps.audit",  # audit log (per tenant)
     "apps.otp",  # SMS OTP — tenant schema serves customer-booking verification
+    "apps.mcp_server",  # MCP server for AI chat (Phase 1+2)
 ]
 
 # INSTALLED_APPS = union, preserving order, no duplicates.
@@ -292,6 +293,18 @@ OTP_SMS_TEMPLATE = env("OTP_SMS_TEMPLATE", default="Your verification code: {cod
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^https?://([a-z0-9-]+\.)?localhost(:\d+)?$"]
+
+# ---------------------------------------------------------------------------
+# MCP (Model Context Protocol) Server Settings
+# ---------------------------------------------------------------------------
+MCP_ENABLED = env.bool("NINA_MCP_ENABLED", default=True)
+MCP_INTERNAL_TOKEN_EXPIRE_SECONDS = env.int("NINA_MCP_INTERNAL_TOKEN_EXPIRE", default=300)  # 5 minutes
+MCP_MAX_TOOLS_PER_REQUEST = env.int("NINA_MCP_MAX_TOOLS_PER_REQUEST", default=10)
+MCP_MAX_RESOURCE_SIZE = env.int("NINA_MCP_MAX_RESOURCE_SIZE", default=1024 * 1024)  # 1MB
+# Qwen AI container endpoint
+NINA_QWEN_ENDPOINT = env("NINA_QWEN_ENDPOINT", default="http://qwen:8011")
+NINA_QWEN_MODEL = env("NINA_QWEN_MODEL", default="qwen2.5:1.5b")
+NINA_QWEN_TIMEOUT = env.int("NINA_QWEN_TIMEOUT", default=60)
 
 # Channel for cross-cutting structured logging config (see logging.py import below).
 from .logging import LOGGING  # noqa: E402,F401
