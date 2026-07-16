@@ -150,7 +150,7 @@ class ChatView(APIView):
         mcp_token = MCPInternalToken.generate(
             tenant=business,  # Note: model uses 'tenant' parameter name
             user=user,
-            scopes=permissions,
+            scopes=list(permissions),  # Convert set to list for JSON serialization
             expires_seconds=300,
         )
 
