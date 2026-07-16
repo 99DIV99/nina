@@ -109,8 +109,20 @@ services:
       - "127.0.0.1:3001:3000"
     depends_on:
       - web
+    networks:
+      - default
+
+  web:
+    networks:
+      - default
+      - nina-shared
 
 volumes:
   pgdata_dev:
   redisdata_dev:
   media_dev:
+
+networks:
+  nina-shared:
+    external: true
+    name: nina-shared

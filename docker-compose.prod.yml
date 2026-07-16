@@ -55,6 +55,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    networks:
+      - default
+      - nina-shared
 
   worker:
     image: nina-backend:latest
@@ -139,3 +142,8 @@ volumes:
   staticfiles:
   media:
   pgadmin:
+
+networks:
+  nina-shared:
+    external: true
+    name: nina-shared

@@ -69,25 +69,6 @@ services:
       - db
       - redis
 
-  qwen:
-    build:
-      context: .
-      dockerfile: Dockerfile.qwen
-    environment:
-      MODEL_PATH: /models
-      MODEL_NAME: Qwen2.5-1.5B-Instruct
-      DEVICE: cpu
-    volumes:
-      - ./models:/models
-    ports:
-      - "8011:8000"
-    deploy:
-      resources:
-        limits:
-          memory: 3G
-        reservations:
-          memory: 2G
-
 volumes:
   pgdata:
   redisdata:
