@@ -190,6 +190,8 @@ REST_FRAMEWORK = {
         "user": "240/min",
         "auth": "10/min",
         "bot": "120/min",
+        "chat": "30/min",  # AI chat endpoint
+        "mcp": "60/min",  # MCP internal endpoint
     },
 }
 
