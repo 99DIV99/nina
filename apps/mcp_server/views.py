@@ -148,10 +148,10 @@ class ChatView(APIView):
         from apps.mcp_server.models import MCPInternalToken
 
         mcp_token = MCPInternalToken.generate(
-            business=business,
+            tenant=business,  # Note: model uses 'tenant' parameter name
             user=user,
             scopes=permissions,
-            expires_in_seconds=300,
+            expires_seconds=300,
         )
 
         # Build MCP config for Qwen
