@@ -104,3 +104,59 @@ def cleanup_old_audit_logs(days=30):
     from datetime import timedelta
     cutoff = timezone.now() - timedelta(days=days)
     return MCPRequestAudit.objects.filter(timestamp__lt=cutoff).delete()
+
+
+class PendingAction(models.Model):
+    """Store pending MCP actions that require user confirmation.
+
+    When AI wants to perform a write operation, it creates a PendingAction
+    instead of executing immediately. User confirms via action_id.
+    """
+
+    id = models.CharField(max_length=36, primary_key=True)  # UUID
+    tenant = models.ForeignKey("tenancy.Business", on_delete=models.CASCADE)
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE)
+
+    # Action details
+    tool_name = models.CharField(max_length=100)
+    tool_params = models.JSONField()
+    description = models.CharField(max_length=500)
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()  # Actions expire in 15 minutes
+    executed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mcp_pending_action"
+        indexes = [
+            models.Index(fields=["id"]),
+            models.Index(fields=["tenant", "user"]),
+            models.Index(fields=["expires_at"]),
+        ]
+
+    def __str__(self):
+        return f"Pending {self.tool_name} for {self.user.email}"
+
+    @classmethod
+    def create(cls, tenant, user, tool_name: str, tool_params: dict, description: str):
+        """Create a new pending action."""
+        import uuid
+        from datetime import timedelta
+        expires_at = timezone.now() + timedelta(minutes=15)
+        action = cls(
+            id=str(uuid.uuid4()),
+            tenant=tenant,
+            user=user,
+            tool_name=tool_name,
+            tool_params=tool_params,
+            description=description,
+            expires_at=expires_at,
+        )
+        action.save()
+        return action
+
+
+def cleanup_expired_actions():
+    """Remove expired pending actions."""
+    return PendingAction.objects.filter(expires_at__lt=timezone.now()).delete()

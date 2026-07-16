@@ -113,7 +113,7 @@ def _get_appointment(context: dict, params: dict) -> dict:
         raise ValueError(f"Appointment {params['id']} not found")
 
 
-# Tool: create_appointment
+# Tool: create_appointment (WRITE)
 register_tool(Tool(
     name="create_appointment",
     description="Create a new appointment",
@@ -140,6 +140,7 @@ register_tool(Tool(
         },
     },
     handler=lambda context, params: _create_appointment(context, params),
+    write=True,
 ))
 
 
@@ -179,7 +180,7 @@ def _create_appointment(context: dict, params: dict) -> dict:
         raise ValueError(f"Failed to create appointment: {e}")
 
 
-# Tool: cancel_appointment
+# Tool: cancel_appointment (WRITE)
 register_tool(Tool(
     name="cancel_appointment",
     description="Cancel an appointment",
@@ -190,6 +191,7 @@ register_tool(Tool(
         },
     },
     handler=lambda context, params: _cancel_appointment(context, params),
+    write=True,
 ))
 
 
@@ -205,7 +207,7 @@ def _cancel_appointment(context: dict, params: dict) -> dict:
         raise ValueError(f"Failed to cancel appointment: {e}")
 
 
-# Tool: reschedule_appointment
+# Tool: reschedule_appointment (WRITE)
 register_tool(Tool(
     name="reschedule_appointment",
     description="Reschedule an appointment to a new time",
@@ -220,6 +222,7 @@ register_tool(Tool(
         },
     },
     handler=lambda context, params: _reschedule_appointment(context, params),
+    write=True,
 ))
 
 
@@ -238,7 +241,7 @@ def _reschedule_appointment(context: dict, params: dict) -> dict:
         raise ValueError(f"Failed to reschedule appointment: {e}")
 
 
-# Tool: update_appointment_status
+# Tool: update_appointment_status (WRITE)
 register_tool(Tool(
     name="update_appointment_status",
     description="Update appointment status (confirm, complete, no_show)",
@@ -254,6 +257,7 @@ register_tool(Tool(
         },
     },
     handler=lambda context, params: _update_appointment_status(context, params),
+    write=True,
 ))
 
 

@@ -18,4 +18,7 @@ urlpatterns = [
 
     # Available tools
     path("tools/", views.ChatToolsView.as_view(), name="tools"),
+
+    # Create pending action (for Qwen write tool interception)
+    path("pending/", views.CreatePendingActionView.as_view(), name="pending"),
 ]

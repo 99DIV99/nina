@@ -14,12 +14,14 @@ class Tool:
         description: str,
         parameters: dict,
         handler: Callable,
+        write: bool = False,
     ):
         self.name = name
         self.description = description
         self.parameters = parameters  # JSON schema
         self.handler = handler
         self.required_permission = get_required_permission(name)
+        self.write = write  # True if this tool modifies data
 
     def to_dict(self) -> dict:
         """Convert tool to MCP format."""
@@ -113,6 +115,7 @@ def tool(
     name: str,
     description: str,
     parameters: dict,
+    write: bool = False,
 ):
     """Decorator to register a function as an MCP tool.
 
@@ -128,6 +131,7 @@ def tool(
             description=description,
             parameters=parameters,
             handler=func,
+            write=write,
         )
         register_tool(tool_obj)
         return func

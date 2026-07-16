@@ -95,7 +95,7 @@ def _get_customer(context: dict, params: dict) -> dict:
     }
 
 
-# Tool: create_customer
+# Tool: create_customer (WRITE)
 register_tool(Tool(
     name="create_customer",
     description="Create a new customer",
@@ -118,6 +118,7 @@ register_tool(Tool(
         },
     },
     handler=lambda context, params: _create_customer(context, params),
+    write=True,
 ))
 
 
