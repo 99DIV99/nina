@@ -59,6 +59,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    networks:
+      - default
+      - nina-shared
 
   worker:
     image: nina-backend:dev
@@ -109,13 +112,6 @@ services:
       - "127.0.0.1:3001:3000"
     depends_on:
       - web
-    networks:
-      - default
-
-  web:
-    networks:
-      - default
-      - nina-shared
 
 volumes:
   pgdata_dev:
