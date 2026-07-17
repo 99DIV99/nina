@@ -23,9 +23,11 @@ print(f"Device: {DEVICE}")
 
 # Load model and tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_id)
+# Use float32 for CPU (float16 not supported on CPU)
+dtype = torch.float16 if DEVICE == "cuda" else torch.float32
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    torch_dtype=torch.float16,
+    torch_dtype=dtype,
     device_map="auto" if DEVICE == "cuda" else {"": "cpu"},
 )
 print("Model loaded!")
