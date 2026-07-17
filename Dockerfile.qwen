@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
     pip install --no-cache-dir --upgrade pip
 
 # Install other dependencies
-RUN pip install --no-cache-dir --timeout 120 \
+RUN pip install --no-cache-dir \
     transformers==4.35.2 \
     accelerate==0.24.1 \
     fastapi==0.109.0 \
