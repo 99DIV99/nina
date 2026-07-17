@@ -11,17 +11,20 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 app = FastAPI(title="NINA AI Chat")
 
-MODEL_PATH = os.getenv("MODEL_PATH", "/models")
+MODEL_PATH = os.getenv("MODEL_PATH", "")  # Empty for HuggingFace download
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")
 DEVICE = os.getenv("DEVICE", "cpu")
 
-print(f"Loading model: {MODEL_PATH}/{MODEL_NAME}")
+# Use local path if MODEL_PATH is set and exists, otherwise use HuggingFace repo ID
+model_id = f"{MODEL_PATH}/{MODEL_NAME}" if MODEL_PATH and os.path.exists(MODEL_PATH) else MODEL_NAME
+
+print(f"Loading model: {model_id}")
 print(f"Device: {DEVICE}")
 
 # Load model and tokenizer
-tokenizer = AutoTokenizer.from_pretrained(f"{MODEL_PATH}/{MODEL_NAME}")
+tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForCausalLM.from_pretrained(
-    f"{MODEL_PATH}/{MODEL_NAME}",
+    model_id,
     torch_dtype=torch.float16,
     device_map="auto" if DEVICE == "cuda" else {"": "cpu"},
 )
