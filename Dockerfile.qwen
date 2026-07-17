@@ -1,23 +1,17 @@
-FROM python:3.10-slim
+FROM pytorch/pytorch:2.1.2-cpu
 
 WORKDIR /app
 
-# Install PyTorch CPU build
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.1.0+cpu \
-    torchvision==0.16.0+cpu \
-    torchaudio==2.1.0+cpu
-
-# Install Python dependencies (use transformers 4.36 for PyTorch 2.1 compatibility)
-RUN pip install --no-cache-dir \
-    transformers==4.36.2 \
-    accelerate==0.25.0 \
-    fastapi>=0.109.0 \
-    uvicorn[standard]>=0.27.0 \
-    pydantic>=2.0.0 \
-    httpx>=0.25.0 \
-    sentencepiece>=0.1.99 \
-    numpy==1.24.4
+# Install Python dependencies (transformers 4.35 doesn't require DTensor)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    transformers==4.35.2 \
+    accelerate==0.24.1 \
+    fastapi==0.109.0 \
+    uvicorn[standard]==0.27.0 \
+    pydantic==2.5.0 \
+    httpx==0.25.2 \
+    sentencepiece==0.1.99
 
 # Copy the Qwen server code
 COPY qwen-app/server.py /app/
