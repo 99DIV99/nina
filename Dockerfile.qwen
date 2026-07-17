@@ -7,10 +7,12 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
     torch==2.1.0+cpu && \
     pip install --no-cache-dir --upgrade pip
 
-# Install other dependencies
+# Install other dependencies (4.37+ needed for Qwen2 support)
+# Set TRANSFORMERS_NO_TEVOS to avoid distributed tensor requirements
+
 RUN pip install --no-cache-dir \
-    transformers==4.35.2 \
-    accelerate==0.24.1 \
+    transformers==4.37.2 \
+    accelerate==0.25.0 \
     fastapi==0.109.0 \
     uvicorn==0.27.0 \
     pydantic==2.5.0 \
