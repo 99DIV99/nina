@@ -2,18 +2,17 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install PyTorch CPU build from PyPI regular index (more reliable)
-RUN pip install --no-cache-dir \
-    torch==2.1.0 \
-    torchvision==0.16.0 \
-    torchaudio==2.1.0
+# Use torch from CPU index, skip torchvision/torchaudio (not needed)
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.1.0+cpu && \
+    pip install --no-cache-dir --upgrade pip
 
-# Install Python dependencies (transformers 4.35 doesn't require DTensor)
-RUN pip install --no-cache-dir \
+# Install other dependencies
+RUN pip install --no-cache-dir --timeout 120 \
     transformers==4.35.2 \
     accelerate==0.24.1 \
     fastapi==0.109.0 \
-    uvicorn[standard]==0.27.0 \
+    uvicorn==0.27.0 \
     pydantic==2.5.0 \
     httpx==0.25.2 \
     sentencepiece==0.1.99
